@@ -1,0 +1,45 @@
+name: MoonBit CI & Conformance Suite
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  verify:
+    name: MoonBit Check, Test, Build & Examples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install MoonBit Toolchain
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+
+      - name: Verify Toolchain Version
+        run: |
+          moon version --all
+
+      - name: Check Code Formatting & Static Types (Zero Warnings)
+        run: |
+          moon fmt --check
+          moon check
+
+      - name: Run 40 Unit & Blackbox Conformance Tests
+        run: |
+          moon test
+
+      - name: Build Wasm-GC Target Artifact
+        run: |
+          moon build --target wasm-gc
+
+      - name: Run CLI Suites & All Standalone Examples
+        run: |
+          moon run cmd/main
+          moon run cmd/codegen
+          moon run examples/px4_telemetry
+          moon run examples/gcs_mission_protocol
+          moon run examples/xml_codegen_custom

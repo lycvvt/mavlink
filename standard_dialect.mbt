@@ -357,7 +357,7 @@ pub fn GpsFixType::from_uint(v : UInt32) -> GpsFixType? {
 
 ///|
 /// Coordinate frames used by MAVLink mission items and position messages.
-pub(all) enum MavFrame {
+pub(all) enum MavCoordFrame {
   Global
   LocalNed
   GlobalRelativeAlt
@@ -366,14 +366,14 @@ pub(all) enum MavFrame {
 } derive(Eq, Debug)
 
 ///|
-pub extend MavFrame with Eq::{not_equal, equal}
+pub extend MavCoordFrame with Eq::{not_equal, equal}
 
 ///|
-pub extend MavFrame with @debug.Debug::{to_repr}
+pub extend MavCoordFrame with @debug.Debug::{to_repr}
 
 ///|
-/// Convert `MavFrame` to its raw MAVLink numeric value.
-pub fn MavFrame::to_uint(self : MavFrame) -> UInt32 {
+/// Convert `MavCoordFrame` to its raw MAVLink numeric value.
+pub fn MavCoordFrame::to_uint(self : MavCoordFrame) -> UInt32 {
   match self {
     Global => 0U
     LocalNed => 1U
@@ -384,8 +384,8 @@ pub fn MavFrame::to_uint(self : MavFrame) -> UInt32 {
 }
 
 ///|
-/// Decode `MavFrame` from its raw MAVLink numeric value.
-pub fn MavFrame::from_uint(v : UInt32) -> MavFrame? {
+/// Decode `MavCoordFrame` from its raw MAVLink numeric value.
+pub fn MavCoordFrame::from_uint(v : UInt32) -> MavCoordFrame? {
   match v {
     0U => Some(Global)
     1U => Some(LocalNed)

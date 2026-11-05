@@ -33,6 +33,19 @@ pub fn to_pascal_case(raw : String) -> String {
 }
 
 ///|
+/// Ensure generated enum or message struct names do not collide with core protocol types.
+pub fn sanitize_type_name(pascal_name : String) -> String {
+  match pascal_name {
+    "MavFrame" => "MavCoordFrame"
+    "MavHeader" => "MavMsgHeader"
+    "MavError" => "MavMsgError"
+    "MavSignature" => "MavMsgSignature"
+    "MavMessage" => "MavMsgPayload"
+    _ => pascal_name
+  }
+}
+
+///|
 /// Sanitize a MAVLink XML field name so that MoonBit reserved keywords (such as `type`)
 /// become valid struct field identifiers.
 pub fn sanitize_field_name(name : String) -> String {
@@ -241,7 +254,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     if en.entries.length() == 0 {
       continue
     }
-    let enum_pascal = to_pascal_case(en.name)
+    let enum_pascal = sanitize_type_name(to_pascal_case(en.name))
     sb.write_string("///|\n")
     if en.description != "" {
       sb.write_string("/// " + single_line_doc(en.description) + "\n")
@@ -319,7 +332,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
 
   // 2. Messages
   for msg in schema.messages {
-    let msg_pascal = to_pascal_case(msg.name)
+    let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
     let id_str = uint_to_dec(msg.id)
     let crc_hex = byte_to_hex_literal(msg.crc_extra)
     let crc_dec = int_to_dec(msg.crc_extra.to_int() & 0xFF)
@@ -518,7 +531,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     )
     sb.write_string("  match msgid {\n")
     for msg in schema.messages {
-      let msg_pascal = to_pascal_case(msg.name)
+      let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
       sb.write_string(
         "    " +
         uint_to_dec(msg.id) +
@@ -533,7 +546,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     sb.write_string("/// Unified top-level MAVLink dialect message sum type.\n")
     sb.write_string("pub(all) enum MavMessage {\n")
     for msg in schema.messages {
-      let msg_pascal = to_pascal_case(msg.name)
+      let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
       sb.write_string("  Msg" + msg_pascal + "(" + msg_pascal + ")\n")
     }
     sb.write_string("} derive(Eq, Debug)\n\n")
@@ -547,7 +560,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     sb.write_string("pub fn MavMessage::msg_id(self : MavMessage) -> UInt {\n")
     sb.write_string("  match self {\n")
     for msg in schema.messages {
-      let msg_pascal = to_pascal_case(msg.name)
+      let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
       sb.write_string(
         "    Msg" + msg_pascal + "(_) => " + uint_to_dec(msg.id) + "U\n",
       )
@@ -561,7 +574,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     )
     sb.write_string("  match self {\n")
     for msg in schema.messages {
-      let msg_pascal = to_pascal_case(msg.name)
+      let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
       sb.write_string(
         "    Msg" + msg_pascal + "(_) => " + msg_pascal + "::crc_extra()\n",
       )
@@ -575,7 +588,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     )
     sb.write_string("  match self {\n")
     for msg in schema.messages {
-      let msg_pascal = to_pascal_case(msg.name)
+      let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
       sb.write_string("    Msg" + msg_pascal + "(m) => m.encode_payload(v2~)\n")
     }
     sb.write_string("  }\n}\n\n")
@@ -610,7 +623,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     sb.write_string("  let is_v2 = frame.header.version == V2\n")
     sb.write_string("  match frame.header.msgid {\n")
     for msg in schema.messages {
-      let msg_pascal = to_pascal_case(msg.name)
+      let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
       sb.write_string("    " + uint_to_dec(msg.id) + "U =>\n")
       sb.write_string(
         "      match " +

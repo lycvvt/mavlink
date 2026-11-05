@@ -60,6 +60,8 @@ pub fn resolve_message_layout(UInt32, String, String, Array[XmlFieldDef]) -> Res
 
 pub fn sanitize_field_name(String) -> String
 
+pub fn sanitize_type_name(String) -> String
+
 pub fn sha256_digest(Bytes) -> FixedArray[Byte]
 
 pub fn to_pascal_case(String) -> String
@@ -246,6 +248,25 @@ pub fn Heartbeat::msg_id() -> UInt32
 pub fn Heartbeat::not_equal(Self, Self) -> Bool
 pub fn Heartbeat::to_repr(Self) -> @debug.Repr
 
+pub(all) struct LocalPositionNed {
+  time_boot_ms : UInt32
+  x : Float
+  y : Float
+  z : Float
+  vx : Float
+  vy : Float
+  vz : Float
+} derive(Eq, @debug.Debug)
+pub fn LocalPositionNed::base_payload_len() -> Int32
+pub fn LocalPositionNed::crc_extra() -> Byte
+pub fn LocalPositionNed::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn LocalPositionNed::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn LocalPositionNed::equal(Self, Self) -> Bool
+pub fn LocalPositionNed::max_payload_len() -> Int32
+pub fn LocalPositionNed::msg_id() -> UInt32
+pub fn LocalPositionNed::not_equal(Self, Self) -> Bool
+pub fn LocalPositionNed::to_repr(Self) -> @debug.Repr
+
 pub(all) struct LoggingAck {
   target_system : Byte
   target_component : Byte
@@ -286,6 +307,19 @@ pub fn MavCmd::from_uint(UInt32) -> Self?
 pub fn MavCmd::not_equal(Self, Self) -> Bool
 pub fn MavCmd::to_repr(Self) -> @debug.Repr
 pub fn MavCmd::to_uint(Self) -> UInt32
+
+pub(all) enum MavCoordFrame {
+  Global
+  LocalNed
+  GlobalRelativeAlt
+  GlobalInt
+  GlobalRelativeAltInt
+} derive(Eq, @debug.Debug)
+pub fn MavCoordFrame::equal(Self, Self) -> Bool
+pub fn MavCoordFrame::from_uint(UInt32) -> Self?
+pub fn MavCoordFrame::not_equal(Self, Self) -> Bool
+pub fn MavCoordFrame::to_repr(Self) -> @debug.Repr
+pub fn MavCoordFrame::to_uint(Self) -> UInt32
 
 pub(all) enum MavError {
   InvalidMagic(Byte)
@@ -344,12 +378,20 @@ pub fn MavHeader::to_repr(Self) -> @debug.Repr
 pub(all) enum MavMessage {
   MsgHeartbeat(Heartbeat)
   MsgSysStatus(SysStatus)
+  MsgSystemTime(SystemTime)
   MsgPing(Ping)
   MsgParamRequestRead(ParamRequestRead)
   MsgParamValue(ParamValue)
+  MsgParamSet(ParamSet)
   MsgGpsRawInt(GpsRawInt)
   MsgAttitude(Attitude)
+  MsgLocalPositionNed(LocalPositionNed)
   MsgGlobalPositionInt(GlobalPositionInt)
+  MsgRcChannelsRaw(RcChannelsRaw)
+  MsgMissionCount(MissionCount)
+  MsgMissionAck(MissionAck)
+  MsgMissionRequestInt(MissionRequestInt)
+  MsgMissionItemInt(MissionItemInt)
   MsgCommandLong(CommandLong)
   MsgCommandAck(CommandAck)
   MsgStatustext(Statustext)
@@ -363,6 +405,30 @@ pub fn MavMessage::equal(Self, Self) -> Bool
 pub fn MavMessage::msg_id(Self) -> UInt32
 pub fn MavMessage::not_equal(Self, Self) -> Bool
 pub fn MavMessage::to_repr(Self) -> @debug.Repr
+
+pub(all) enum MavMissionResult {
+  MavMissionAccepted
+  MavMissionError
+  MavMissionUnsupportedFrame
+  MavMissionUnsupported
+  MavMissionInvalidSequence
+} derive(Eq, @debug.Debug)
+pub fn MavMissionResult::equal(Self, Self) -> Bool
+pub fn MavMissionResult::from_uint(UInt32) -> Self?
+pub fn MavMissionResult::not_equal(Self, Self) -> Bool
+pub fn MavMissionResult::to_repr(Self) -> @debug.Repr
+pub fn MavMissionResult::to_uint(Self) -> UInt32
+
+pub(all) enum MavMissionType {
+  Mission
+  Fence
+  Rally
+} derive(Eq, @debug.Debug)
+pub fn MavMissionType::equal(Self, Self) -> Bool
+pub fn MavMissionType::from_uint(UInt32) -> Self?
+pub fn MavMissionType::not_equal(Self, Self) -> Bool
+pub fn MavMissionType::to_repr(Self) -> @debug.Repr
+pub fn MavMissionType::to_uint(Self) -> UInt32
 
 pub(all) enum MavModeFlag {
   CustomModeEnabled
@@ -462,6 +528,83 @@ pub fn MavType::not_equal(Self, Self) -> Bool
 pub fn MavType::to_repr(Self) -> @debug.Repr
 pub fn MavType::to_uint(Self) -> UInt32
 
+pub(all) struct MissionAck {
+  target_system : Byte
+  target_component : Byte
+  mav_type : Byte
+  mission_type : Byte
+  opaque_id : UInt32
+} derive(Eq, @debug.Debug)
+pub fn MissionAck::base_payload_len() -> Int32
+pub fn MissionAck::crc_extra() -> Byte
+pub fn MissionAck::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MissionAck::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MissionAck::equal(Self, Self) -> Bool
+pub fn MissionAck::max_payload_len() -> Int32
+pub fn MissionAck::msg_id() -> UInt32
+pub fn MissionAck::not_equal(Self, Self) -> Bool
+pub fn MissionAck::to_repr(Self) -> @debug.Repr
+
+pub(all) struct MissionCount {
+  target_system : Byte
+  target_component : Byte
+  count : UInt32
+  mission_type : Byte
+  opaque_id : UInt32
+} derive(Eq, @debug.Debug)
+pub fn MissionCount::base_payload_len() -> Int32
+pub fn MissionCount::crc_extra() -> Byte
+pub fn MissionCount::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MissionCount::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MissionCount::equal(Self, Self) -> Bool
+pub fn MissionCount::max_payload_len() -> Int32
+pub fn MissionCount::msg_id() -> UInt32
+pub fn MissionCount::not_equal(Self, Self) -> Bool
+pub fn MissionCount::to_repr(Self) -> @debug.Repr
+
+pub(all) struct MissionItemInt {
+  target_system : Byte
+  target_component : Byte
+  seq : UInt32
+  frame : Byte
+  command : UInt32
+  current : Byte
+  autocontinue : Byte
+  param1 : Float
+  param2 : Float
+  param3 : Float
+  param4 : Float
+  x : Int32
+  y : Int32
+  z : Float
+  mission_type : Byte
+} derive(Eq, @debug.Debug)
+pub fn MissionItemInt::base_payload_len() -> Int32
+pub fn MissionItemInt::crc_extra() -> Byte
+pub fn MissionItemInt::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MissionItemInt::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MissionItemInt::equal(Self, Self) -> Bool
+pub fn MissionItemInt::max_payload_len() -> Int32
+pub fn MissionItemInt::msg_id() -> UInt32
+pub fn MissionItemInt::not_equal(Self, Self) -> Bool
+pub fn MissionItemInt::to_repr(Self) -> @debug.Repr
+
+pub(all) struct MissionRequestInt {
+  target_system : Byte
+  target_component : Byte
+  seq : UInt32
+  mission_type : Byte
+} derive(Eq, @debug.Debug)
+pub fn MissionRequestInt::base_payload_len() -> Int32
+pub fn MissionRequestInt::crc_extra() -> Byte
+pub fn MissionRequestInt::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MissionRequestInt::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MissionRequestInt::equal(Self, Self) -> Bool
+pub fn MissionRequestInt::max_payload_len() -> Int32
+pub fn MissionRequestInt::msg_id() -> UInt32
+pub fn MissionRequestInt::not_equal(Self, Self) -> Bool
+pub fn MissionRequestInt::to_repr(Self) -> @debug.Repr
+
 pub(all) struct ParamRequestRead {
   target_system : Byte
   target_component : Byte
@@ -477,6 +620,23 @@ pub fn ParamRequestRead::max_payload_len() -> Int32
 pub fn ParamRequestRead::msg_id() -> UInt32
 pub fn ParamRequestRead::not_equal(Self, Self) -> Bool
 pub fn ParamRequestRead::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ParamSet {
+  target_system : Byte
+  target_component : Byte
+  param_id : String
+  param_value : Float
+  param_type : Byte
+} derive(Eq, @debug.Debug)
+pub fn ParamSet::base_payload_len() -> Int32
+pub fn ParamSet::crc_extra() -> Byte
+pub fn ParamSet::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn ParamSet::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn ParamSet::equal(Self, Self) -> Bool
+pub fn ParamSet::max_payload_len() -> Int32
+pub fn ParamSet::msg_id() -> UInt32
+pub fn ParamSet::not_equal(Self, Self) -> Bool
+pub fn ParamSet::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ParamValue {
   param_id : String
@@ -573,6 +733,29 @@ pub fn ProtocolVersion::equal(Self, Self) -> Bool
 pub fn ProtocolVersion::not_equal(Self, Self) -> Bool
 pub fn ProtocolVersion::to_repr(Self) -> @debug.Repr
 
+pub(all) struct RcChannelsRaw {
+  time_boot_ms : UInt32
+  port : Byte
+  chan1_raw : UInt32
+  chan2_raw : UInt32
+  chan3_raw : UInt32
+  chan4_raw : UInt32
+  chan5_raw : UInt32
+  chan6_raw : UInt32
+  chan7_raw : UInt32
+  chan8_raw : UInt32
+  rssi : Byte
+} derive(Eq, @debug.Debug)
+pub fn RcChannelsRaw::base_payload_len() -> Int32
+pub fn RcChannelsRaw::crc_extra() -> Byte
+pub fn RcChannelsRaw::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn RcChannelsRaw::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn RcChannelsRaw::equal(Self, Self) -> Bool
+pub fn RcChannelsRaw::max_payload_len() -> Int32
+pub fn RcChannelsRaw::msg_id() -> UInt32
+pub fn RcChannelsRaw::not_equal(Self, Self) -> Bool
+pub fn RcChannelsRaw::to_repr(Self) -> @debug.Repr
+
 pub(all) struct SigningContext {
   secret_key : FixedArray[Byte]
   link_id : Byte
@@ -625,6 +808,20 @@ pub fn SysStatus::max_payload_len() -> Int32
 pub fn SysStatus::msg_id() -> UInt32
 pub fn SysStatus::not_equal(Self, Self) -> Bool
 pub fn SysStatus::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SystemTime {
+  time_unix_usec : UInt64
+  time_boot_ms : UInt32
+} derive(Eq, @debug.Debug)
+pub fn SystemTime::base_payload_len() -> Int32
+pub fn SystemTime::crc_extra() -> Byte
+pub fn SystemTime::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn SystemTime::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn SystemTime::equal(Self, Self) -> Bool
+pub fn SystemTime::max_payload_len() -> Int32
+pub fn SystemTime::msg_id() -> UInt32
+pub fn SystemTime::not_equal(Self, Self) -> Bool
+pub fn SystemTime::to_repr(Self) -> @debug.Repr
 
 pub(all) struct X25Crc {
   mut value : UInt32

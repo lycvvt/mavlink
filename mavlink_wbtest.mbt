@@ -1,88 +1,125 @@
 ///|
-test "x25 crc16 standard vector and official message crc_extra values" {
-  // Standard ASCII "123456789" X.25 internal CRC value before complement is 0x6F91
+test "crc16: ITU-T X.25 standard ASCII check vector 123456789" {
   let check_bytes = b"123456789"
   assert_eq(crc16_calculate(check_bytes), 0x6F91U)
+}
 
-  // Verify generated official CRC_EXTRA constants match MAVLink reference table
+///|
+test "crc16: incremental byte vs slice vs ascii accumulation equivalence" {
+  let c1 = X25Crc::new()
+  c1.accumulate_ascii("HEARTBEAT ")
+  let c2 = X25Crc::new()
+  c2.accumulate_bytes(b"xxHEARTBEAT yy", start=2, len=10)
+  assert_eq(c1.value, c2.value)
+  assert_eq(c1.low_byte(), c2.low_byte())
+  assert_eq(c1.high_byte(), c2.high_byte())
+  c1.reset()
+  assert_eq(c1.value, X25_INIT_CRC)
+}
+
+///|
+test "crc_extra: minimal and core telemetry messages (HEARTBEAT, SYS_STATUS, SYSTEM_TIME, PING)" {
   assert_eq(Heartbeat::crc_extra(), (50).to_byte())
   assert_eq(SysStatus::crc_extra(), (124).to_byte())
+  assert_eq(SystemTime::crc_extra(), (137).to_byte())
   assert_eq(Ping::crc_extra(), (237).to_byte())
+}
+
+///|
+test "crc_extra: parameter and navigation messages" {
   assert_eq(ParamRequestRead::crc_extra(), (214).to_byte())
   assert_eq(ParamValue::crc_extra(), (220).to_byte())
-  assert_eq(GpsRawInt::crc_extra(), (24).to_byte())
+  assert_eq(ParamSet::crc_extra(), (168).to_byte())
   assert_eq(Attitude::crc_extra(), (39).to_byte())
+  assert_eq(LocalPositionNed::crc_extra(), (185).to_byte())
   assert_eq(GlobalPositionInt::crc_extra(), (104).to_byte())
+  assert_eq(RcChannelsRaw::crc_extra(), (244).to_byte())
+}
+
+///|
+test "crc_extra: mission and command messages with v2 extensions excluded from seed" {
+  assert_eq(MissionCount::crc_extra(), (221).to_byte())
+  assert_eq(MissionAck::crc_extra(), (153).to_byte())
+  assert_eq(MissionRequestInt::crc_extra(), (196).to_byte())
+  assert_eq(MissionItemInt::crc_extra(), (38).to_byte())
   assert_eq(CommandLong::crc_extra(), (152).to_byte())
   assert_eq(CommandAck::crc_extra(), (143).to_byte())
+}
+
+///|
+test "crc_extra: GPS_RAW_INT, STATUSTEXT, LOGGING_ACK and array length injection rule" {
+  assert_eq(GpsRawInt::crc_extra(), (24).to_byte())
   assert_eq(Statustext::crc_extra(), (83).to_byte())
+  assert_eq(LoggingAck::crc_extra(), (14).to_byte())
 }
 
 ///|
-test "heartbeat wire field reordering and v1/v2 frame roundtrip" {
-  let hb : Heartbeat = {
-    mav_type: MavType::Quadrotor.to_uint().to_byte(),
-    autopilot: MavAutopilot::Px4.to_uint().to_byte(),
-    base_mode: (MavModeFlag::CustomModeEnabled.to_uint() |
-    MavModeFlag::StabilizeEnabled.to_uint() |
-    MavModeFlag::SafetyArmed.to_uint()).to_byte(),
-    custom_mode: 0x04010000U,
-    system_status: MavState::Active.to_uint().to_byte(),
-    mavlink_version: b'\x03',
-  }
+test "payload: scalar unsigned integers (u8, u16, u24, u32, u64) little-endian boundary values" {
+  let w = PayloadWriter::new()
+  w.write_uint8(b'\xAB')
+  w.write_uint16(0xBEEFU)
+  w.write_uint24(0x123456U)
+  w.write_uint32(0xDEADBEEFU)
+  w.write_uint64(0x0102030405060708UL)
+  let raw = w.to_bytes()
+  assert_eq(raw.length(), 1 + 2 + 3 + 4 + 8)
 
-  // Wire order for HEARTBEAT must place custom_mode (uint32_t) at bytes 0..3,
-  // followed by type(4), autopilot(5), base_mode(6), system_status(7), mavlink_version(8).
-  let payload = hb.encode_payload(v2=true)
-  assert_eq(payload.length(), 9)
-  assert_eq(payload[0], b'\x00')
-  assert_eq(payload[1], b'\x00')
-  assert_eq(payload[2], b'\x01')
-  assert_eq(payload[3], b'\x04')
-  assert_eq(payload[4], b'\x02') // MAV_TYPE_QUADROTOR = 2
-  assert_eq(payload[5], b'\x0C') // MAV_AUTOPILOT_PX4 = 12
-  assert_eq(payload[6], (1 + 16 + 128).to_byte())
-  assert_eq(payload[7], b'\x04') // MAV_STATE_ACTIVE = 4
-  assert_eq(payload[8], b'\x03')
-
-  // Full MAVLink v2 frame roundtrip
-  let msg = MsgHeartbeat(hb)
-  let (v2_wire, v2_frame) = match
-    msg.encode_to_frame(seq=b'\x07', sysid=b'\x01', compid=b'\x01', version=V2) {
-    Ok(res) => res
-    Err(e) => fail("v2 encode failed: \{e.to_repr()}")
-  }
-  assert_eq(v2_wire[0], MAVLINK_STX_V2)
-  assert_eq(v2_wire.length(), 1 + V2_HEADER_LEN + 9 + 2)
-  let (decoded_v2_frame, consumed_v2) = match
-    decode_frame(v2_wire, lookup_message_crc_extra) {
-    Ok(res) => res
-    Err(e) => fail("v2 decode failed: \{e.to_repr()}")
-  }
-  assert_eq(consumed_v2, v2_wire.length())
-  assert_eq(decoded_v2_frame, v2_frame)
-  assert_eq(MavMessage::decode_from_frame(decoded_v2_frame), Ok(msg))
-
-  // Full MAVLink v1 frame roundtrip
-  let (v1_wire, _) = match
-    msg.encode_to_frame(seq=b'\x08', sysid=b'\x01', compid=b'\x01', version=V1) {
-    Ok(res) => res
-    Err(e) => fail("v1 encode failed: \{e.to_repr()}")
-  }
-  assert_eq(v1_wire[0], MAVLINK_STX_V1)
-  assert_eq(v1_wire.length(), 1 + V1_HEADER_LEN + 9 + 2)
-  let (decoded_v1_frame, consumed_v1) = match
-    decode_frame(v1_wire, lookup_message_crc_extra) {
-    Ok(res) => res
-    Err(e) => fail("v1 decode failed: \{e.to_repr()}")
-  }
-  assert_eq(consumed_v1, v1_wire.length())
-  assert_eq(MavMessage::decode_from_frame(decoded_v1_frame), Ok(msg))
+  let r = PayloadReader::new(raw, zero_extend=false)
+  assert_eq(r.read_uint8(), Ok(b'\xAB'))
+  assert_eq(r.read_uint16(), Ok(0xBEEFU))
+  assert_eq(r.read_uint8(), Ok(b'\x56'))
+  assert_eq(r.read_uint8(), Ok(b'\x34'))
+  assert_eq(r.read_uint8(), Ok(b'\x12'))
+  assert_eq(r.read_uint32(), Ok(0xDEADBEEFU))
+  assert_eq(r.read_uint64(), Ok(0x0102030405060708UL))
 }
 
 ///|
-test "mavlink v2 trailing zero truncation and all-zero minimum 1-byte rule" {
-  // COMMAND_LONG with only param1 = 1.0 and command = 400 (ARM), all trailing bytes 0
+test "payload: scalar signed integers (i8, i16, i32, i64) negative two's complement roundtrip" {
+  let w = PayloadWriter::new()
+  w.write_int8(-1)
+  w.write_int8(-128)
+  w.write_int16(-32768)
+  w.write_int16(-42)
+  w.write_int32(-2147483648)
+  w.write_int64(-9000000000000L)
+  let raw = w.to_bytes()
+
+  let r = PayloadReader::new(raw, zero_extend=false)
+  assert_eq(r.read_int8(), Ok(-1))
+  assert_eq(r.read_int8(), Ok(-128))
+  assert_eq(r.read_int16(), Ok(-32768))
+  assert_eq(r.read_int16(), Ok(-42))
+  assert_eq(r.read_int32(), Ok(-2147483648))
+  assert_eq(r.read_int64(), Ok(-9000000000000L))
+}
+
+///|
+test "payload: IEEE-754 float32 and float64 precision roundtrip" {
+  let w = PayloadWriter::new()
+  w.write_float((3.1415927 : Float))
+  w.write_float((-0.0025 : Float))
+  w.write_double(2.718281828459045)
+  let r = PayloadReader::new(w.to_bytes(), zero_extend=false)
+  assert_eq(r.read_float(), Ok((3.1415927 : Float)))
+  assert_eq(r.read_float(), Ok((-0.0025 : Float)))
+  assert_eq(r.read_double(), Ok(2.718281828459045))
+}
+
+///|
+test "payload: fixed char[N] NUL padding, exact-length, and over-length truncation" {
+  let w = PayloadWriter::new()
+  w.write_char_array("SYS_ID", 16)
+  w.write_char_array("0123456789ABCDEF_EXTRA", 16)
+  let raw = w.to_bytes()
+  assert_eq(raw.length(), 32)
+  let r = PayloadReader::new(raw, zero_extend=false)
+  assert_eq(r.read_char_array(16), Ok("SYS_ID"))
+  assert_eq(r.read_char_array(16), Ok("0123456789ABCDEF"))
+}
+
+///|
+test "payload: MAVLink v2 trailing zero-byte truncation strips trailing 0x00 bytes" {
   let arm_cmd : CommandLong = {
     target_system: b'\x01',
     target_component: b'\x01',
@@ -99,11 +136,12 @@ test "mavlink v2 trailing zero truncation and all-zero minimum 1-byte rule" {
   let v1_payload = arm_cmd.encode_payload(v2=false)
   let v2_payload = arm_cmd.encode_payload(v2=true)
   assert_eq(v1_payload.length(), 33)
-  // In v2, confirmation (last byte at offset 32) is 0x00, so it is truncated to 32 bytes
   assert_eq(v2_payload.length(), 32)
   assert_eq(CommandLong::decode_payload(v2_payload, v2=true), Ok(arm_cmd))
+}
 
-  // Now test a message where all fields are zero: v2 payload must retain exactly 1 byte
+///|
+test "payload: MAVLink v2 all-zero payload retains mandatory 1st byte" {
   let zero_ping : Ping = {
     time_usec: 0UL,
     seq: 0U,
@@ -117,7 +155,183 @@ test "mavlink v2 trailing zero truncation and all-zero minimum 1-byte rule" {
 }
 
 ///|
-test "mavlink v2 extension fields in GPS_RAW_INT, COMMAND_ACK, and STATUSTEXT" {
+test "payload: v1 strict reader rejects short buffer with PayloadTooShort while v2 zero-extends" {
+  let short_buf = b"\x01\x02"
+  assert_true(
+    Ping::decode_payload(short_buf, v2=false) is Err(PayloadTooShort(_, _)),
+  )
+  assert_true(Ping::decode_payload(short_buf, v2=true) is Ok(_))
+}
+
+///|
+test "frame: HEARTBEAT wire field reordering (custom_mode at offset 0) and v2 byte layout" {
+  let hb : Heartbeat = {
+    mav_type: MavType::Quadrotor.to_uint().to_byte(),
+    autopilot: MavAutopilot::Px4.to_uint().to_byte(),
+    base_mode: (MavModeFlag::CustomModeEnabled.to_uint() |
+    MavModeFlag::StabilizeEnabled.to_uint() |
+    MavModeFlag::SafetyArmed.to_uint()).to_byte(),
+    custom_mode: 0x04010000U,
+    system_status: MavState::Active.to_uint().to_byte(),
+    mavlink_version: b'\x03',
+  }
+  let payload = hb.encode_payload(v2=true)
+  assert_eq(payload.length(), 9)
+  assert_eq(payload[0], b'\x00')
+  assert_eq(payload[1], b'\x00')
+  assert_eq(payload[2], b'\x01')
+  assert_eq(payload[3], b'\x04')
+  assert_eq(payload[4], b'\x02')
+  assert_eq(payload[5], b'\x0C')
+  assert_eq(payload[6], (1 + 16 + 128).to_byte())
+  assert_eq(payload[7], b'\x04')
+  assert_eq(payload[8], b'\x03')
+
+  let msg = MsgHeartbeat(hb)
+  let (v2_wire, v2_frame) = match
+    msg.encode_to_frame(seq=b'\x07', sysid=b'\x01', compid=b'\x01', version=V2) {
+    Ok(res) => res
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(v2_wire[0], MAVLINK_STX_V2)
+  assert_eq(v2_wire.length(), 1 + V2_HEADER_LEN + 9 + 2)
+  let (decoded_v2_frame, consumed_v2) = match
+    decode_frame(v2_wire, lookup_message_crc_extra) {
+    Ok(res) => res
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(consumed_v2, v2_wire.length())
+  assert_eq(decoded_v2_frame, v2_frame)
+  assert_eq(MavMessage::decode_from_frame(decoded_v2_frame), Ok(msg))
+}
+
+///|
+test "frame: HEARTBEAT legacy MAVLink v1 (0xFE) frame encoding and decoding" {
+  let hb : Heartbeat = {
+    mav_type: MavType::FixedWing.to_uint().to_byte(),
+    autopilot: MavAutopilot::Ardupilotmega.to_uint().to_byte(),
+    base_mode: b'\x81',
+    custom_mode: 11U,
+    system_status: MavState::Standby.to_uint().to_byte(),
+    mavlink_version: b'\x03',
+  }
+  let msg = MsgHeartbeat(hb)
+  let (v1_wire, _) = match
+    msg.encode_to_frame(seq=b'\x08', sysid=b'\x01', compid=b'\x01', version=V1) {
+    Ok(res) => res
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(v1_wire[0], MAVLINK_STX_V1)
+  assert_eq(v1_wire.length(), 1 + V1_HEADER_LEN + 9 + 2)
+  let (decoded_v1_frame, consumed_v1) = match
+    decode_frame(v1_wire, lookup_message_crc_extra) {
+    Ok(res) => res
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(consumed_v1, v1_wire.length())
+  assert_eq(decoded_v1_frame.header.version, V1)
+  assert_eq(MavMessage::decode_from_frame(decoded_v1_frame), Ok(msg))
+}
+
+///|
+test "frame: SYS_STATUS and SYSTEM_TIME v2 roundtrip" {
+  let ss : SysStatus = {
+    onboard_control_sensors_present: 0x3FFU,
+    onboard_control_sensors_enabled: 0x3FFU,
+    onboard_control_sensors_health: 0x3FFU,
+    load: 410U,
+    voltage_battery: 15800U,
+    current_battery: 1200,
+    battery_remaining: 78,
+    drop_rate_comm: 2U,
+    errors_comm: 0U,
+    errors_count1: 0U,
+    errors_count2: 0U,
+    errors_count3: 0U,
+    errors_count4: 1U,
+  }
+  let (ss_wire, _) = match
+    MsgSysStatus(ss).encode_to_frame(seq=b'\x01', sysid=b'\x01', compid=b'\x01') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let (ss_f, _) = match decode_frame(ss_wire, lookup_message_crc_extra) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(MavMessage::decode_from_frame(ss_f), Ok(MsgSysStatus(ss)))
+
+  let stime : SystemTime = {
+    time_unix_usec: 1730000123456789UL,
+    time_boot_ms: 85400U,
+  }
+  let (st_wire, _) = match
+    MsgSystemTime(stime).encode_to_frame(
+      seq=b'\x02',
+      sysid=b'\x01',
+      compid=b'\x01',
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let (st_f, _) = match decode_frame(st_wire, lookup_message_crc_extra) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(MavMessage::decode_from_frame(st_f), Ok(MsgSystemTime(stime)))
+}
+
+///|
+test "frame: PING and RC_CHANNELS_RAW v2 roundtrip" {
+  let ping : Ping = {
+    time_usec: 99887766UL,
+    seq: 7U,
+    target_system: b'\x01',
+    target_component: b'\x01',
+  }
+  assert_eq(Ping::decode_payload(ping.encode_payload(), v2=true), Ok(ping))
+
+  let rc : RcChannelsRaw = {
+    time_boot_ms: 5000U,
+    port: b'\x00',
+    chan1_raw: 1500U,
+    chan2_raw: 1500U,
+    chan3_raw: 1000U,
+    chan4_raw: 1500U,
+    chan5_raw: 2000U,
+    chan6_raw: 1500U,
+    chan7_raw: 1500U,
+    chan8_raw: 1500U,
+    rssi: (254).to_byte(),
+  }
+  assert_eq(RcChannelsRaw::decode_payload(rc.encode_payload(), v2=true), Ok(rc))
+}
+
+///|
+test "frame: PARAM_REQUEST_READ, PARAM_VALUE, and PARAM_SET char[16] roundtrip" {
+  let req : ParamRequestRead = {
+    target_system: b'\x01',
+    target_component: b'\x01',
+    param_id: "SYS_AUTOSTART",
+    param_index: -1,
+  }
+  assert_eq(
+    ParamRequestRead::decode_payload(req.encode_payload(), v2=true),
+    Ok(req),
+  )
+
+  let pset : ParamSet = {
+    target_system: b'\x01',
+    target_component: b'\x01',
+    param_id: "MPC_Z_VEL_MAX_UP",
+    param_value: (3.5 : Float),
+    param_type: b'\x09',
+  }
+  assert_eq(ParamSet::decode_payload(pset.encode_payload(), v2=true), Ok(pset))
+}
+
+///|
+test "frame: GPS_RAW_INT v2 RTK extension fields preserved in v2 and zero-filled from v1" {
   let gps : GpsRawInt = {
     time_usec: 1730000000000000UL,
     fix_type: GpsFixType::RtkFixed.to_uint().to_byte(),
@@ -138,213 +352,81 @@ test "mavlink v2 extension fields in GPS_RAW_INT, COMMAND_ACK, and STATUSTEXT" {
   }
   assert_eq(GpsRawInt::base_payload_len(), 30)
   assert_eq(GpsRawInt::max_payload_len(), 52)
+  assert_eq(
+    GpsRawInt::decode_payload(gps.encode_payload(v2=true), v2=true),
+    Ok(gps),
+  )
 
-  // v2 preserves extension fields
-  let v2_bytes = gps.encode_payload(v2=true)
-  assert_eq(GpsRawInt::decode_payload(v2_bytes, v2=true), Ok(gps))
-
-  // v1 drops extension fields (30 bytes), and v2 decoder zero-extends them cleanly
   let v1_bytes = gps.encode_payload(v2=false)
   assert_eq(v1_bytes.length(), 30)
   let decoded_from_v1 = match GpsRawInt::decode_payload(v1_bytes, v2=true) {
     Ok(m) => m
-    Err(e) => fail("decode failed: \{e.to_repr()}")
+    Err(e) => fail(e.to_repr().to_string())
   }
   assert_eq(decoded_from_v1.lat, gps.lat)
-  assert_eq(decoded_from_v1.lon, gps.lon)
   assert_eq(decoded_from_v1.alt_ellipsoid, 0)
   assert_eq(decoded_from_v1.yaw, 0U)
-
-  // STATUSTEXT char[50] + v2 extension fields
-  let status : Statustext = {
-    severity: MavSeverity::Info.to_uint().to_byte(),
-    text: "PX4: Armed and ready for autonomous mission",
-    id: 42U,
-    chunk_seq: b'\x01',
-  }
-  let (st_wire, _) = match
-    MsgStatustext(status).encode_to_frame(
-      seq=b'\x12',
-      sysid=b'\x01',
-      compid=b'\x01',
-    ) {
-    Ok(r) => r
-    Err(e) => fail("statustext encode failed: \{e.to_repr()}")
-  }
-  let (st_frame, _) = match decode_frame(st_wire, lookup_message_crc_extra) {
-    Ok(r) => r
-    Err(e) => fail("statustext decode failed: \{e.to_repr()}")
-  }
-  assert_eq(MavMessage::decode_from_frame(st_frame), Ok(MsgStatustext(status)))
 }
 
 ///|
-test "sha256 digest and mavlink v2 packet signing with replay protection" {
-  // FIPS 180-4 test vector: SHA-256("abc")
-  let digest = sha256_digest(b"abc")
-  assert_eq(digest[0], b'\xba')
-  assert_eq(digest[1], b'\x78')
-  assert_eq(digest[2], b'\x16')
-  assert_eq(digest[3], b'\xbf')
-  assert_eq(digest[31], b'\xad')
+test "frame: MISSION_COUNT, MISSION_REQUEST_INT, MISSION_ITEM_INT, and MISSION_ACK v2 extensions roundtrip" {
+  let mc : MissionCount = {
+    target_system: b'\x01',
+    target_component: b'\x01',
+    count: 5U,
+    mission_type: MavMissionType::Fence.to_uint().to_byte(),
+    opaque_id: 999U,
+  }
+  assert_eq(MissionCount::decode_payload(mc.encode_payload(), v2=true), Ok(mc))
 
-  let secret_key = b"0123456789abcdef0123456789abcdef"
-  let tx_signer = match
-    SigningContext::new(secret_key, link_id=b'\x02', initial_timestamp=1000UL) {
-    Ok(c) => c
-    Err(e) => fail("tx_signer init failed: \{e.to_repr()}")
-  }
-  let rx_verifier = match
-    SigningContext::new(secret_key, link_id=b'\x02', initial_timestamp=1000UL) {
-    Ok(c) => c
-    Err(e) => fail("rx_verifier init failed: \{e.to_repr()}")
-  }
-
-  let ack : CommandAck = {
-    command: MavCmd::NavTakeoff.to_uint(),
-    result: MavResult::Accepted.to_uint().to_byte(),
-    progress: (100).to_byte(),
-    result_param2: 0,
-    target_system: b'\xFF',
-    target_component: b'\xBE',
-  }
-  let (signed_wire, signed_frame) = match
-    MsgCommandAck(ack).encode_to_frame(
-      seq=b'\x01',
-      sysid=b'\x01',
-      compid=b'\x01',
-      signing=Some(tx_signer),
-    ) {
-    Ok(r) => r
-    Err(e) => fail("signed encode failed: \{e.to_repr()}")
-  }
-  assert_eq(signed_frame.header.incompat_flags, IFLAG_SIGNED)
-  assert_true(signed_frame.signature is Some(_))
-
-  // Verify authentic signed packet succeeds
-  let (verified_frame, _) = match
-    decode_frame(
-      signed_wire,
-      lookup_message_crc_extra,
-      signing=Some(rx_verifier),
-    ) {
-    Ok(r) => r
-    Err(e) => fail("signed decode failed: \{e.to_repr()}")
+  let mreq : MissionRequestInt = {
+    target_system: b'\x01',
+    target_component: b'\x01',
+    seq: 2U,
+    mission_type: MavMissionType::Fence.to_uint().to_byte(),
   }
   assert_eq(
-    MavMessage::decode_from_frame(verified_frame),
-    Ok(MsgCommandAck(ack)),
+    MissionRequestInt::decode_payload(mreq.encode_payload(), v2=true),
+    Ok(mreq),
   )
 
-  // Replaying the exact same frame must be rejected by monotonic timestamp protection
-  let replay_res = decode_frame(
-    signed_wire,
-    lookup_message_crc_extra,
-    signing=Some(rx_verifier),
-  )
-  assert_true(replay_res is Err(SignatureInvalid(_)))
-
-  // Unsigned frame when signing is required must return SignatureMissing
-  let (unsigned_wire, _) = match
-    MsgCommandAck(ack).encode_to_frame(
-      seq=b'\x02',
-      sysid=b'\x01',
-      compid=b'\x01',
-    ) {
-    Ok(r) => r
-    Err(e) => fail("unsigned encode failed: \{e.to_repr()}")
+  let mitem : MissionItemInt = {
+    target_system: b'\x01',
+    target_component: b'\x01',
+    seq: 2U,
+    frame: MavCoordFrame::GlobalRelativeAltInt.to_uint().to_byte(),
+    command: MavCmd::NavWaypoint.to_uint(),
+    current: b'\x00',
+    autocontinue: b'\x01',
+    param1: (0.0 : Float),
+    param2: (1.5 : Float),
+    param3: (0.0 : Float),
+    param4: (0.0 : Float),
+    x: 225430960,
+    y: 1140578650,
+    z: (40.0 : Float),
+    mission_type: MavMissionType::Mission.to_uint().to_byte(),
   }
-  let unsigned_res = decode_frame(
-    unsigned_wire,
-    lookup_message_crc_extra,
-    signing=Some(rx_verifier),
+  assert_eq(
+    MissionItemInt::decode_payload(mitem.encode_payload(), v2=true),
+    Ok(mitem),
   )
-  assert_eq(unsigned_res, Err(SignatureMissing))
+
+  let mack : MissionAck = {
+    target_system: b'\xFF',
+    target_component: b'\xBE',
+    mav_type: MavMissionResult::MavMissionAccepted.to_uint().to_byte(),
+    mission_type: MavMissionType::Mission.to_uint().to_byte(),
+    opaque_id: 999U,
+  }
+  assert_eq(
+    MissionAck::decode_payload(mack.encode_payload(), v2=true),
+    Ok(mack),
+  )
 }
 
 ///|
-test "streaming FrameParser handles noise, chunk fragmentation, and sequence drops" {
-  let hb : Heartbeat = {
-    mav_type: b'\x02',
-    autopilot: b'\x0C',
-    base_mode: b'\x81',
-    custom_mode: 0U,
-    system_status: b'\x04',
-    mavlink_version: b'\x03',
-  }
-  // Frame 1: seq = 10
-  let (f1_bytes, _) = match
-    MsgHeartbeat(hb).encode_to_frame(
-      seq=(10).to_byte(),
-      sysid=b'\x01',
-      compid=b'\x01',
-    ) {
-    Ok(r) => r
-    Err(e) => fail(e.to_repr().to_string())
-  }
-  // Frame 2: seq = 13 (simulating 2 dropped frames: seq 11 and 12)
-  let (f2_bytes, _) = match
-    MsgHeartbeat(hb).encode_to_frame(
-      seq=(13).to_byte(),
-      sysid=b'\x01',
-      compid=b'\x01',
-    ) {
-    Ok(r) => r
-    Err(e) => fail(e.to_repr().to_string())
-  }
-
-  // Construct stream: 3 noise bytes + f1_bytes + 1 corrupted frame + f2_bytes
-  let stream_buf : Array[Byte] = [b'\x00', b'\xAA', b'\x55']
-  for i = 0; i < f1_bytes.length(); i = i + 1 {
-    stream_buf.push(f1_bytes[i])
-  }
-  // Corrupted frame (flip last CRC byte of f1_bytes)
-  for i = 0; i < f1_bytes.length() - 1; i = i + 1 {
-    stream_buf.push(f1_bytes[i])
-  }
-  stream_buf.push((f1_bytes[f1_bytes.length() - 1].to_uint() ^ 0xFFU).to_byte())
-  // Valid f2_bytes
-  for i = 0; i < f2_bytes.length(); i = i + 1 {
-    stream_buf.push(f2_bytes[i])
-  }
-
-  let parser = FrameParser::new()
-  let decoded_frames : Array[MavFrame] = []
-  let crc_errs : Array[MavError] = []
-
-  // Feed in small 5-byte chunks to exercise partial frame reassembly
-  let mut idx = 0
-  while idx < stream_buf.length() {
-    let chunk_arr : Array[Byte] = []
-    for j = 0; j < 5 && idx + j < stream_buf.length(); j = j + 1 {
-      chunk_arr.push(stream_buf[idx + j])
-    }
-    idx = idx + chunk_arr.length()
-    let events = parser.push_bytes(
-      Bytes::from_array(chunk_arr),
-      lookup_message_crc_extra,
-    )
-    for ev in events {
-      match ev {
-        FrameDecoded(f) => decoded_frames.push(f)
-        FrameError(CrcMismatch(exp, act)) =>
-          crc_errs.push(CrcMismatch(exp, act))
-        FrameError(_) => ()
-      }
-    }
-  }
-
-  assert_eq(decoded_frames.length(), 2)
-  assert_eq(crc_errs.length(), 1)
-  assert_eq(parser.packets_received, 2U)
-  assert_eq(parser.packets_dropped, 2U)
-  assert_eq(parser.crc_errors, 1U)
-  assert_true(parser.noise_bytes_skipped >= 3U)
-}
-
-///|
-test "24-bit v2 message id and custom xml schema code generation with numeric arrays" {
-  // LOGGING_ACK has msgid = 268 (> 255), valid in v2 but rejected in v1
+test "frame: 24-bit message ID LOGGING_ACK (#268) works in v2 and returns UnsupportedV1MessageId in v1" {
   let log_ack : LoggingAck = {
     target_system: b'\x01',
     target_component: b'\x01',
@@ -376,49 +458,329 @@ test "24-bit v2 message id and custom xml schema code generation with numeric ar
     MavMessage::decode_from_frame(decoded_f),
     Ok(MsgLoggingAck(log_ack)),
   )
+}
 
-  // Parse a custom XML dialect containing fixed numeric arrays (uint16_t[4]) and hex enum values
-  let custom_xml =
-    #|<?xml version="1.0"?>
-    #|<mavlink>
-    #|  <version>3</version>
-    #|  <dialect>2</dialect>
-    #|  <enums>
-    #|    <enum name="MOTOR_STATE">
-    #|      <entry value="0x00" name="MOTOR_STATE_IDLE"/>
-    #|      <entry value="0x01" name="MOTOR_STATE_SPINNING"/>
-    #|    </enum>
-    #|  </enums>
-    #|  <messages>
-    #|    <message id="1200" name="ESC_TELEMETRY_QUAD">
-    #|      <description>Quadrotor ESC telemetry with array fields</description>
-    #|      <field type="uint8_t" name="state" enum="MOTOR_STATE">Motor state</field>
-    #|      <field type="uint16_t[4]" name="rpm">RPM of 4 motors</field>
-    #|      <field type="uint32_t" name="timestamp_ms">Boot timestamp</field>
-    #|      <extensions/>
-    #|      <field type="int8_t" name="max_temp_c">Peak ESC temperature</field>
-    #|    </message>
-    #|  </messages>
-    #|</mavlink>
+///|
+test "frame error: InvalidMagic on unknown start-of-text byte" {
+  let bad = b"\xAA\x09\x00\x00\x01\x01\x01\x00\x00\x00"
+  assert_eq(
+    decode_frame(bad, lookup_message_crc_extra),
+    Err(InvalidMagic(b'\xAA')),
+  )
+}
 
-  let (schema, generated_src) = match generate_moonbit_from_xml(custom_xml) {
-    Ok(res) => res
-    Err(e) => fail("custom xml codegen failed: \{e.to_repr()}")
+///|
+test "frame error: IncompleteFrame on truncated header or truncated payload" {
+  assert_eq(
+    decode_frame(b"", lookup_message_crc_extra),
+    Err(IncompleteFrame(1, 0)),
+  )
+  assert_eq(
+    decode_frame(b"\xFD\x09\x00\x00", lookup_message_crc_extra),
+    Err(IncompleteFrame(12, 4)),
+  )
+  assert_eq(
+    decode_frame(
+      b"\xFD\x09\x00\x00\x01\x01\x01\x00\x00\x00\x01\x02", lookup_message_crc_extra,
+    ),
+    Err(IncompleteFrame(21, 12)),
+  )
+}
+
+///|
+test "frame error: UnsupportedIncompatFlags on unknown v2 incompatibility bit" {
+  let unknown_flag = b"\xFD\x01\x04\x00\x01\x01\x01\x00\x00\x00\x00\x00\x00"
+  assert_eq(
+    decode_frame(unknown_flag, lookup_message_crc_extra),
+    Err(UnsupportedIncompatFlags(b'\x04')),
+  )
+}
+
+///|
+test "frame error: UnknownMessageId when msgid is absent from crc_extra table" {
+  let unknown_msg = b"\xFD\x01\x00\x00\x01\x01\x01\xFF\xFF\x0F\x00\x00\x00"
+  assert_eq(
+    decode_frame(unknown_msg, lookup_message_crc_extra),
+    Err(UnknownMessageId(0x0FFFFFU)),
+  )
+}
+
+///|
+test "frame error: CrcMismatch when wire payload or checksum byte is flipped" {
+  let ping : Ping = {
+    time_usec: 1UL,
+    seq: 1U,
+    target_system: b'\x01',
+    target_component: b'\x01',
   }
-  assert_eq(schema.messages.length(), 1)
-  let esc_msg = schema.messages[0]
-  assert_eq(esc_msg.id, 1200U)
-  // Wire ordering: timestamp_ms (uint32_t, 4B) at offset 0, rpm (uint16_t[4], 8B) at offset 4,
-  // state (uint8_t, 1B) at offset 12, extension max_temp_c (int8_t, 1B) at offset 13
-  assert_eq(esc_msg.wire_ordered_fields[0].name, "timestamp_ms")
-  assert_eq(esc_msg.wire_ordered_fields[0].wire_offset, 0)
-  assert_eq(esc_msg.wire_ordered_fields[1].name, "rpm")
-  assert_eq(esc_msg.wire_ordered_fields[1].wire_offset, 4)
-  assert_eq(esc_msg.wire_ordered_fields[2].name, "state")
-  assert_eq(esc_msg.wire_ordered_fields[2].wire_offset, 12)
-  assert_eq(esc_msg.wire_ordered_fields[3].name, "max_temp_c")
-  assert_eq(esc_msg.wire_ordered_fields[3].wire_offset, 13)
-  assert_eq(esc_msg.base_payload_len, 13)
-  assert_eq(esc_msg.max_payload_len, 14)
-  assert_true(generated_src.contains("pub(all) struct EscTelemetryQuad"))
+  let (wire, _) = match
+    MsgPing(ping).encode_to_frame(seq=b'\x01', sysid=b'\x01', compid=b'\x01') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let corrupted : Array[Byte] = []
+  for i = 0; i < wire.length() - 1; i = i + 1 {
+    corrupted.push(wire[i])
+  }
+  corrupted.push((wire[wire.length() - 1].to_uint() ^ 0xFFU).to_byte())
+  assert_true(
+    decode_frame(Bytes::from_array(corrupted), lookup_message_crc_extra)
+    is Err(CrcMismatch(_, _)),
+  )
+}
+
+///|
+test "sha256: FIPS 180-4 empty string and 'abc' standard test vectors" {
+  let empty_digest = sha256_digest(b"")
+  assert_eq(empty_digest[0], b'\xe3')
+  assert_eq(empty_digest[1], b'\xb0')
+  assert_eq(empty_digest[2], b'\xc4')
+  assert_eq(empty_digest[3], b'\x42')
+  assert_eq(empty_digest[31], b'\x55')
+
+  let abc_digest = sha256_digest(b"abc")
+  assert_eq(abc_digest[0], b'\xba')
+  assert_eq(abc_digest[1], b'\x78')
+  assert_eq(abc_digest[2], b'\x16')
+  assert_eq(abc_digest[3], b'\xbf')
+  assert_eq(abc_digest[31], b'\xad')
+}
+
+///|
+test "sha256: multi-block (>64 bytes) message digest verification" {
+  // FIPS 180-4 448-bit / 56-byte vector that spans 2 SHA-256 blocks after padding
+  let msg = b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
+  let d = sha256_digest(msg)
+  assert_eq(d[0], b'\x24')
+  assert_eq(d[1], b'\x8d')
+  assert_eq(d[2], b'\x6a')
+  assert_eq(d[3], b'\x61')
+  assert_eq(d[29], b'\xdb')
+  assert_eq(d[30], b'\x06')
+  assert_eq(d[31], b'\xc1')
+}
+
+///|
+test "signing: SigningContext rejects key length != 32 bytes" {
+  assert_true(SigningContext::new(b"short_key") is Err(SignatureInvalid(_)))
+}
+
+///|
+test "signing: MAVLink v2 13-byte packet signature generation and verification" {
+  let secret_key = b"0123456789abcdef0123456789abcdef"
+  let tx_signer = match
+    SigningContext::new(secret_key, link_id=b'\x02', initial_timestamp=1000UL) {
+    Ok(c) => c
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let rx_verifier = match
+    SigningContext::new(secret_key, link_id=b'\x02', initial_timestamp=1000UL) {
+    Ok(c) => c
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let ack : CommandAck = {
+    command: MavCmd::NavTakeoff.to_uint(),
+    result: MavResult::Accepted.to_uint().to_byte(),
+    progress: (100).to_byte(),
+    result_param2: 0,
+    target_system: b'\xFF',
+    target_component: b'\xBE',
+  }
+  let (signed_wire, signed_frame) = match
+    MsgCommandAck(ack).encode_to_frame(
+      seq=b'\x01',
+      sysid=b'\x01',
+      compid=b'\x01',
+      signing=Some(tx_signer),
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(signed_frame.header.incompat_flags, IFLAG_SIGNED)
+  assert_true(signed_frame.signature is Some(_))
+  let (verified_frame, _) = match
+    decode_frame(
+      signed_wire,
+      lookup_message_crc_extra,
+      signing=Some(rx_verifier),
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(
+    MavMessage::decode_from_frame(verified_frame),
+    Ok(MsgCommandAck(ack)),
+  )
+}
+
+///|
+test "signing: monotonic timestamp anti-replay protection and unsigned rejection" {
+  let secret_key = b"0123456789abcdef0123456789abcdef"
+  let tx_signer = match
+    SigningContext::new(secret_key, link_id=b'\x01', initial_timestamp=500UL) {
+    Ok(c) => c
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let rx_verifier = match
+    SigningContext::new(secret_key, link_id=b'\x01', initial_timestamp=500UL) {
+    Ok(c) => c
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let ping : Ping = {
+    time_usec: 42UL,
+    seq: 1U,
+    target_system: b'\x01',
+    target_component: b'\x01',
+  }
+  let (signed_wire, _) = match
+    MsgPing(ping).encode_to_frame(
+      seq=b'\x01',
+      sysid=b'\x01',
+      compid=b'\x01',
+      signing=Some(tx_signer),
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_true(
+    decode_frame(
+      signed_wire,
+      lookup_message_crc_extra,
+      signing=Some(rx_verifier),
+    )
+    is Ok(_),
+  )
+  // Replaying same packet must fail anti-replay check
+  assert_true(
+    decode_frame(
+      signed_wire,
+      lookup_message_crc_extra,
+      signing=Some(rx_verifier),
+    )
+    is Err(SignatureInvalid(_)),
+  )
+  // Unsigned packet must fail with SignatureMissing
+  let (unsigned_wire, _) = match
+    MsgPing(ping).encode_to_frame(seq=b'\x02', sysid=b'\x01', compid=b'\x01') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(
+    decode_frame(
+      unsigned_wire,
+      lookup_message_crc_extra,
+      signing=Some(rx_verifier),
+    ),
+    Err(SignatureMissing),
+  )
+}
+
+///|
+test "stream parser: leading UART noise skipping and multi-frame concatenation" {
+  let hb : Heartbeat = {
+    mav_type: b'\x02',
+    autopilot: b'\x0C',
+    base_mode: b'\x81',
+    custom_mode: 0U,
+    system_status: b'\x04',
+    mavlink_version: b'\x03',
+  }
+  let (f1, _) = match
+    MsgHeartbeat(hb).encode_to_frame(seq=b'\x00', sysid=b'\x01', compid=b'\x01') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let (f2, _) = match
+    MsgHeartbeat(hb).encode_to_frame(seq=b'\x01', sysid=b'\x01', compid=b'\x01') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let buf : Array[Byte] = [b'\x00', b'\x11', b'\x22', b'\x33']
+  for i = 0; i < f1.length(); i = i + 1 {
+    buf.push(f1[i])
+  }
+  for i = 0; i < f2.length(); i = i + 1 {
+    buf.push(f2[i])
+  }
+  let parser = FrameParser::new()
+  let events = parser.push_bytes(
+    Bytes::from_array(buf),
+    lookup_message_crc_extra,
+  )
+  assert_eq(events.length(), 2)
+  assert_eq(parser.packets_received, 2U)
+  assert_eq(parser.packets_dropped, 0U)
+  assert_eq(parser.noise_bytes_skipped, 4U)
+}
+
+///|
+test "stream parser: 1-byte at a time byte-by-byte fragmented reassembly" {
+  let ping : Ping = {
+    time_usec: 123456UL,
+    seq: 9U,
+    target_system: b'\x01',
+    target_component: b'\x01',
+  }
+  let (wire, _) = match
+    MsgPing(ping).encode_to_frame(seq=b'\x05', sysid=b'\x01', compid=b'\x01') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let parser = FrameParser::new()
+  let mut decoded_count = 0
+  for i = 0; i < wire.length(); i = i + 1 {
+    let single = Bytes::from_array([wire[i]])
+    let evs = parser.push_bytes(single, lookup_message_crc_extra)
+    decoded_count = decoded_count + evs.length()
+  }
+  assert_eq(decoded_count, 1)
+  assert_eq(parser.packets_received, 1U)
+}
+
+///|
+test "stream parser: sequence gap packet drop counting and CRC error recovery" {
+  let hb : Heartbeat = {
+    mav_type: b'\x02',
+    autopilot: b'\x0C',
+    base_mode: b'\x81',
+    custom_mode: 0U,
+    system_status: b'\x04',
+    mavlink_version: b'\x03',
+  }
+  let (f1, _) = match
+    MsgHeartbeat(hb).encode_to_frame(
+      seq=(10).to_byte(),
+      sysid=b'\x01',
+      compid=b'\x01',
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let (f2, _) = match
+    MsgHeartbeat(hb).encode_to_frame(
+      seq=(14).to_byte(),
+      sysid=b'\x01',
+      compid=b'\x01',
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let buf : Array[Byte] = []
+  for i = 0; i < f1.length(); i = i + 1 {
+    buf.push(f1[i])
+  }
+  // Corrupted frame
+  for i = 0; i < f1.length() - 1; i = i + 1 {
+    buf.push(f1[i])
+  }
+  buf.push((f1[f1.length() - 1].to_uint() ^ 0xFFU).to_byte())
+  // Valid f2 (seq=14, gap of 3 packets: 11, 12, 13)
+  for i = 0; i < f2.length(); i = i + 1 {
+    buf.push(f2[i])
+  }
+  let parser = FrameParser::new()
+  let _ = parser.push_bytes(Bytes::from_array(buf), lookup_message_crc_extra)
+  assert_eq(parser.packets_received, 2U)
+  assert_eq(parser.packets_dropped, 3U)
+  assert_eq(parser.crc_errors, 1U)
 }

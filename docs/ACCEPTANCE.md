@@ -12,14 +12,14 @@
 
 | 审查维度 | 官方章程要求 | 本项目实际完成指标 | 状态 |
 | :--- | :--- | :--- | :---: |
-| **选题查重** | 不与 Mooncakes.io 或已有开源项目重复 | `moon search mavlink` / `px4` / `ardupilot` 均为 `No modules found.`（详见 [`docs/dedup.md`](dedup.md)） | ✅ 通过 |
-| **主要实现语言** | MoonBit 为主要实现语言，构建真实可用功能 | 核心协议栈、SHA-256 签名、XML 解析与代码生成 100% 纯 MoonBit 实现（0 FFI） | ✅ 通过 |
-| **编译与静态检查** | 必须在当前最新工具链下编译通过 | `moon check` 与 `moon build --target wasm-gc` 均为 **`0 warnings, 0 errors`** | ✅ 通过 |
-| **单元测试与边界验证** | 具备充分的正确性与错误处理测试 | 共 **40 项自动化测试**（35 项白盒 + 5 项黑盒），覆盖 20 条消息、CRC 篡改、签名重放、XML 异常 | ✅ 通过 |
-| **可运行示例与 CLI** | 提供可直接运行的示例程序 | 提供 `cmd/main`、`cmd/codegen` 及 3 个独立场景示例（`examples/px4_telemetry`、`examples/gcs_mission_protocol`、`examples/xml_codegen_custom`） | ✅ 通过 |
-| **交互式演示工作台** | 直观展示核心功能与可视化结果 | 提供 [`web/index.html`](../web/index.html) 零依赖交互式 MAVLink v2 帧结构剖析器与 XML 代码生成工作台 | ✅ 通过 |
-| **开源许可与合规声明** | OSI 认可开源协议 + 第三方来源说明 | 根目录包含 [`LICENSE`](../LICENSE) (`Apache-2.0`) 与 [`NOTICE`](../NOTICE)（声明官方 MAVLink XML Schema CC0/MIT 来源） | ✅ 通过 |
-| **开发历史与 Issues** | 真实、可追踪的 Git 历史与项目管理 | 13+ 条语义化原子提交（`feat:` / `test:` / `docs:` / `ci:`）+ GitHub Issues 里程碑追踪 | ✅ 通过 |
+| **选题查重** | 不与 Mooncakes.io 或已有开源项目重复 | `moon search mavlink` / `px4` / `ardupilot` 均为 `No modules found.`（详见 [`docs/dedup.md`](dedup.md)） | PASS |
+| **主要实现语言** | MoonBit 为主要实现语言，构建真实可用功能 | 核心协议栈、SHA-256 签名、XML 解析与代码生成 100% 纯 MoonBit 实现（0 FFI） | PASS |
+| **编译与静态检查** | 必须在当前最新工具链下编译通过 | `moon check` 与 `moon build --target wasm-gc` 均为 **`0 warnings, 0 errors`** | PASS |
+| **单元测试与边界验证** | 具备充分的正确性与错误处理测试 | 共 **40 项自动化测试**（35 项白盒 + 5 项黑盒），覆盖 20 条消息、CRC 篡改、签名重放、XML 异常 | PASS |
+| **可运行示例与 CLI** | 提供可直接运行的示例程序 | 提供 `cmd/main`、`cmd/codegen` 及 3 个独立场景示例（`examples/px4_telemetry`、`examples/gcs_mission_protocol`、`examples/xml_codegen_custom`） | PASS |
+| **交互式演示工作台** | 直观展示核心功能与可视化结果 | 提供 [`web/index.html`](../web/index.html) 零依赖交互式 MAVLink v2 帧结构剖析器与 XML 代码生成工作台 | PASS |
+| **开源许可与合规声明** | OSI 认可开源协议 + 第三方来源说明 | 根目录包含 [`LICENSE`](../LICENSE) (`Apache-2.0`) 与 [`NOTICE`](../NOTICE)（声明官方 MAVLink XML Schema CC0/MIT 来源） | PASS |
+| **开发历史与 Issues** | 真实、可追踪的 Git 历史与项目管理 | 14+ 条语义化原子提交（`feat:` / `test:` / `docs:` / `ci:`）+ GitHub Issues 里程碑追踪 | PASS |
 
 ---
 

@@ -139,7 +139,7 @@
 <body>
   <header>
     <div>
-      <h1>🚁 lycvvt/mavlink — MAVLink v2 协议剖析与 MoonBit 代码生成工作台</h1>
+      <h1>lycvvt/mavlink — MAVLink v2 协议剖析与 MoonBit 代码生成工作台</h1>
       <p>100% 纯 MoonBit 实现 · ITU-T X.25 CRC_EXTRA · 尾部零字节截断 · FIPS 180-4 SHA-256 13B 帧签名 · 官方 XML 自动代码生成</p>
     </div>
     <div class="badges">
@@ -174,7 +174,7 @@
     <section class="card">
       <h2>
         <span>2. 官方 &lt;mavlink&gt; XML → MoonBit 实时代码生成器</span>
-        <button id="runCodegenBtn" style="margin-top:0;">⚡ 立即生成 MoonBit 代码</button>
+        <button id="runCodegenBtn" style="margin-top:0;">立即生成 MoonBit 代码</button>
       </h2>
       <label for="xmlInput">输入官方或自定义 MAVLink XML 消息定义（自动执行字段按宽度降序重排与 CRC_EXTRA 验算）：</label>
       <textarea id="xmlInput" spellcheck="false">&lt;?xml version="1.0"?&gt;
@@ -303,7 +303,7 @@
         <tr><th>帧总长度 / 载荷长度</th><td><code>${p.bytes.length} Bytes</code> / <code>LEN = ${payloadLen} Bytes</code></td></tr>
         <tr><th>发送端地址 (SYSID:COMPID)</th><td><code>sysid = 0x${p.bytes[5].toString(16).padStart(2,"0")}</code>, <code>compid = 0x${p.bytes[6].toString(16).padStart(2,"0")}</code>, <code>seq = ${p.bytes[4]}</code></td></tr>
         <tr><th>X.25 CRC_EXTRA 种子</th><td><code>${p.crcExtra}</code> (0x${p.crcExtra.toString(16).toUpperCase().padStart(2,"0")})</td></tr>
-        <tr><th>SHA-256 签名状态</th><td>${signed ? "✅ 已启用 13 字节 SHA-256 帧签名 (incompat_flags = 0x01)" : "未启用签名 (incompat_flags = 0x00)"}</td></tr>
+        <tr><th>SHA-256 签名状态</th><td>${signed ? "已启用 13 字节 SHA-256 帧签名 (incompat_flags = 0x01)" : "未启用签名 (incompat_flags = 0x00)"}</td></tr>
         <tr><th>工程语义说明</th><td>${p.desc}</td></tr>
       `;
     }

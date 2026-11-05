@@ -1,0 +1,32 @@
+MoonBit MAVLink v2 Protocol Library & XML Code Generator (lycvvt/mavlink)
+Copyright 2026 lycvvt
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+================================================================================
+Sources, Protocol Specifications, and Third-Party Notices
+================================================================================
+
+1. MAVLink Wire Protocol Specification (v1 & v2)
+   - Source: https://mavlink.io/en/guide/serialization.html
+   - Packet Signing Specification: https://mavlink.io/en/guide/message_signing.html
+   - CRC_EXTRA Calculation Specification: https://mavlink.io/en/guide/crc.html
+   - Relationship: This library is a clean-room native MoonBit implementation of
+     the MAVLink v2 and v1 binary wire framing, X.25 CRC-16/MCRF4XX checksum,
+     payload trailing-zero truncation, packet signing (SHA-256), and XML schema
+     code generator.
+
+2. Official MAVLink XML Message Definitions (`minimal.xml`, `common.xml`)
+   - Upstream Repository: https://github.com/mavlink/mavlink
+   - Upstream Copyright: Copyright (c) 2009-2026 Lorenz Meier and MAVLink Contributors
+   - Upstream License: MIT License (https://opensource.org/licenses/MIT)
+   - Usage: Standard XML message definitions (`HEARTBEAT`, `SYS_STATUS`,
+     `SYSTEM_TIME`, `PING`, `PARAM_REQUEST_READ`, `PARAM_VALUE`, `GPS_RAW_INT`,
+     `ATTITUDE`, `GLOBAL_POSITION_INT`, `RC_CHANNELS_RAW`, `MISSION_ITEM_INT`,
+     `COMMAND_LONG`, `COMMAND_ACK`, `STATUSTEXT`) and enum definitions are used
+     as input schemas for the MoonBit code generator and protocol conformance
+     test vectors.

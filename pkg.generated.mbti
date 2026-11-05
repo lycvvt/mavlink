@@ -1,0 +1,693 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lycvvt/mavlink"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub const IFLAG_SIGNED : Byte = b'\x01'
+
+pub const MAVLINK_STX_V1 : Byte = b'\xFE'
+
+pub const MAVLINK_STX_V2 : Byte = b'\xFD'
+
+pub const MAX_PAYLOAD_LEN : Int32 = 255
+
+pub const V1_HEADER_LEN : Int32 = 5
+
+pub const V2_HEADER_LEN : Int32 = 9
+
+pub const V2_SIGNATURE_LEN : Int32 = 13
+
+pub const X25_INIT_CRC : UInt32 = 0xFFFF
+
+pub fn compute_crc_extra(String, Array[CrcFieldSpec]) -> Result[Byte, MavError]
+
+pub fn compute_v2_signature_bytes(FixedArray[Byte], Bytes, Byte, UInt64) -> FixedArray[Byte]
+
+pub fn crc16_calculate(Bytes) -> UInt32
+
+pub fn crc16_calculate_with_extra(Bytes, Byte) -> UInt32
+
+pub fn decode_frame(Bytes, (UInt32) -> Byte?, start? : Int32, signing? : SigningContext?) -> Result[(MavFrame, Int32), MavError]
+
+pub fn encode_frame(MavHeader, Bytes, Byte, truncate_v2_zeros? : Bool, signing? : SigningContext?) -> Result[(Bytes, MavFrame), MavError]
+
+pub fn enum_entry_variant_name(String, String) -> String
+
+pub fn field_moonbit_type(MavFieldType) -> String
+
+pub fn generate_moonbit_code(DialectSchema) -> String
+
+pub fn generate_moonbit_from_xml(String) -> Result[(DialectSchema, String), MavError]
+
+pub fn lookup_message_crc_extra(UInt32) -> Byte?
+
+pub let official_standard_xml : String
+
+pub fn parse_dialect_xml(String) -> Result[DialectSchema, MavError]
+
+pub fn parse_mav_field_type(String) -> Result[MavFieldType, MavError]
+
+pub fn parse_wire_type_spec(String) -> Result[(String, Int32, Int32), MavError]
+
+pub fn primitive_moonbit_type(MavPrimitiveType) -> String
+
+pub fn primitive_type_size(String) -> Result[Int32, MavError]
+
+pub fn resolve_message_layout(UInt32, String, String, Array[XmlFieldDef]) -> Result[XmlMessageDef, MavError]
+
+pub fn sanitize_field_name(String) -> String
+
+pub fn sha256_digest(Bytes) -> FixedArray[Byte]
+
+pub fn to_pascal_case(String) -> String
+
+pub fn truncate_trailing_zeros(Bytes) -> Bytes
+
+// Errors
+
+// Types and methods
+pub(all) struct Attitude {
+  time_boot_ms : UInt32
+  roll : Float
+  pitch : Float
+  yaw : Float
+  rollspeed : Float
+  pitchspeed : Float
+  yawspeed : Float
+} derive(Eq, @debug.Debug)
+pub fn Attitude::base_payload_len() -> Int32
+pub fn Attitude::crc_extra() -> Byte
+pub fn Attitude::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn Attitude::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn Attitude::equal(Self, Self) -> Bool
+pub fn Attitude::max_payload_len() -> Int32
+pub fn Attitude::msg_id() -> UInt32
+pub fn Attitude::not_equal(Self, Self) -> Bool
+pub fn Attitude::to_repr(Self) -> @debug.Repr
+
+pub(all) struct CommandAck {
+  command : UInt32
+  result : Byte
+  progress : Byte
+  result_param2 : Int32
+  target_system : Byte
+  target_component : Byte
+} derive(Eq, @debug.Debug)
+pub fn CommandAck::base_payload_len() -> Int32
+pub fn CommandAck::crc_extra() -> Byte
+pub fn CommandAck::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn CommandAck::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn CommandAck::equal(Self, Self) -> Bool
+pub fn CommandAck::max_payload_len() -> Int32
+pub fn CommandAck::msg_id() -> UInt32
+pub fn CommandAck::not_equal(Self, Self) -> Bool
+pub fn CommandAck::to_repr(Self) -> @debug.Repr
+
+pub(all) struct CommandLong {
+  target_system : Byte
+  target_component : Byte
+  command : UInt32
+  confirmation : Byte
+  param1 : Float
+  param2 : Float
+  param3 : Float
+  param4 : Float
+  param5 : Float
+  param6 : Float
+  param7 : Float
+} derive(Eq, @debug.Debug)
+pub fn CommandLong::base_payload_len() -> Int32
+pub fn CommandLong::crc_extra() -> Byte
+pub fn CommandLong::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn CommandLong::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn CommandLong::equal(Self, Self) -> Bool
+pub fn CommandLong::max_payload_len() -> Int32
+pub fn CommandLong::msg_id() -> UInt32
+pub fn CommandLong::not_equal(Self, Self) -> Bool
+pub fn CommandLong::to_repr(Self) -> @debug.Repr
+
+pub(all) struct CrcFieldSpec {
+  wire_type : String
+  name : String
+  is_extension : Bool
+} derive(Eq, @debug.Debug)
+pub fn CrcFieldSpec::equal(Self, Self) -> Bool
+pub fn CrcFieldSpec::new(String, String, is_extension? : Bool) -> Self
+pub fn CrcFieldSpec::not_equal(Self, Self) -> Bool
+pub fn CrcFieldSpec::to_repr(Self) -> @debug.Repr
+
+pub(all) struct DialectSchema {
+  version : Int32
+  dialect : Int32
+  includes : Array[String]
+  enums : Array[XmlEnumDef]
+  messages : Array[XmlMessageDef]
+} derive(Eq, @debug.Debug)
+pub fn DialectSchema::equal(Self, Self) -> Bool
+pub fn DialectSchema::not_equal(Self, Self) -> Bool
+pub fn DialectSchema::to_repr(Self) -> @debug.Repr
+
+pub(all) struct FrameParser {
+  buffer : Array[Byte]
+  mut packets_received : UInt32
+  mut packets_dropped : UInt32
+  mut crc_errors : UInt32
+  mut noise_bytes_skipped : UInt32
+  mut last_seq : Int32
+} derive(Eq, @debug.Debug)
+pub fn FrameParser::equal(Self, Self) -> Bool
+pub fn FrameParser::new() -> Self
+pub fn FrameParser::not_equal(Self, Self) -> Bool
+pub fn FrameParser::push_bytes(Self, Bytes, (UInt32) -> Byte?, signing? : SigningContext?) -> Array[ParseStreamEvent]
+pub fn FrameParser::to_repr(Self) -> @debug.Repr
+
+pub(all) struct GlobalPositionInt {
+  time_boot_ms : UInt32
+  lat : Int32
+  lon : Int32
+  alt : Int32
+  relative_alt : Int32
+  vx : Int32
+  vy : Int32
+  vz : Int32
+  hdg : UInt32
+} derive(Eq, @debug.Debug)
+pub fn GlobalPositionInt::base_payload_len() -> Int32
+pub fn GlobalPositionInt::crc_extra() -> Byte
+pub fn GlobalPositionInt::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn GlobalPositionInt::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn GlobalPositionInt::equal(Self, Self) -> Bool
+pub fn GlobalPositionInt::max_payload_len() -> Int32
+pub fn GlobalPositionInt::msg_id() -> UInt32
+pub fn GlobalPositionInt::not_equal(Self, Self) -> Bool
+pub fn GlobalPositionInt::to_repr(Self) -> @debug.Repr
+
+pub(all) enum GpsFixType {
+  NoGps
+  NoFix
+  V2dFix
+  V3dFix
+  Dgps
+  RtkFloat
+  RtkFixed
+} derive(Eq, @debug.Debug)
+pub fn GpsFixType::equal(Self, Self) -> Bool
+pub fn GpsFixType::from_uint(UInt32) -> Self?
+pub fn GpsFixType::not_equal(Self, Self) -> Bool
+pub fn GpsFixType::to_repr(Self) -> @debug.Repr
+pub fn GpsFixType::to_uint(Self) -> UInt32
+
+pub(all) struct GpsRawInt {
+  time_usec : UInt64
+  fix_type : Byte
+  lat : Int32
+  lon : Int32
+  alt : Int32
+  eph : UInt32
+  epv : UInt32
+  vel : UInt32
+  cog : UInt32
+  satellites_visible : Byte
+  alt_ellipsoid : Int32
+  h_acc : UInt32
+  v_acc : UInt32
+  vel_acc : UInt32
+  hdg_acc : UInt32
+  yaw : UInt32
+} derive(Eq, @debug.Debug)
+pub fn GpsRawInt::base_payload_len() -> Int32
+pub fn GpsRawInt::crc_extra() -> Byte
+pub fn GpsRawInt::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn GpsRawInt::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn GpsRawInt::equal(Self, Self) -> Bool
+pub fn GpsRawInt::max_payload_len() -> Int32
+pub fn GpsRawInt::msg_id() -> UInt32
+pub fn GpsRawInt::not_equal(Self, Self) -> Bool
+pub fn GpsRawInt::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Heartbeat {
+  mav_type : Byte
+  autopilot : Byte
+  base_mode : Byte
+  custom_mode : UInt32
+  system_status : Byte
+  mavlink_version : Byte
+} derive(Eq, @debug.Debug)
+pub fn Heartbeat::base_payload_len() -> Int32
+pub fn Heartbeat::crc_extra() -> Byte
+pub fn Heartbeat::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn Heartbeat::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn Heartbeat::equal(Self, Self) -> Bool
+pub fn Heartbeat::max_payload_len() -> Int32
+pub fn Heartbeat::msg_id() -> UInt32
+pub fn Heartbeat::not_equal(Self, Self) -> Bool
+pub fn Heartbeat::to_repr(Self) -> @debug.Repr
+
+pub(all) struct LoggingAck {
+  target_system : Byte
+  target_component : Byte
+  sequence : UInt32
+} derive(Eq, @debug.Debug)
+pub fn LoggingAck::base_payload_len() -> Int32
+pub fn LoggingAck::crc_extra() -> Byte
+pub fn LoggingAck::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn LoggingAck::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn LoggingAck::equal(Self, Self) -> Bool
+pub fn LoggingAck::max_payload_len() -> Int32
+pub fn LoggingAck::msg_id() -> UInt32
+pub fn LoggingAck::not_equal(Self, Self) -> Bool
+pub fn LoggingAck::to_repr(Self) -> @debug.Repr
+
+pub(all) enum MavAutopilot {
+  Generic
+  Ardupilotmega
+  Invalid
+  Px4
+} derive(Eq, @debug.Debug)
+pub fn MavAutopilot::equal(Self, Self) -> Bool
+pub fn MavAutopilot::from_uint(UInt32) -> Self?
+pub fn MavAutopilot::not_equal(Self, Self) -> Bool
+pub fn MavAutopilot::to_repr(Self) -> @debug.Repr
+pub fn MavAutopilot::to_uint(Self) -> UInt32
+
+pub(all) enum MavCmd {
+  NavWaypoint
+  NavReturnToLaunch
+  NavLand
+  NavTakeoff
+  ComponentArmDisarm
+  RequestMessage
+} derive(Eq, @debug.Debug)
+pub fn MavCmd::equal(Self, Self) -> Bool
+pub fn MavCmd::from_uint(UInt32) -> Self?
+pub fn MavCmd::not_equal(Self, Self) -> Bool
+pub fn MavCmd::to_repr(Self) -> @debug.Repr
+pub fn MavCmd::to_uint(Self) -> UInt32
+
+pub(all) enum MavError {
+  InvalidMagic(Byte)
+  IncompleteFrame(Int32, Int32)
+  PayloadTooLarge(Int32)
+  PayloadTooShort(Int32, Int32)
+  UnsupportedV1MessageId(UInt32)
+  UnsupportedIncompatFlags(Byte)
+  UnknownMessageId(UInt32)
+  CrcMismatch(UInt32, UInt32)
+  SignatureMissing
+  SignatureInvalid(String)
+  InvalidEnumValue(String, UInt32)
+  XmlParseError(String)
+  SchemaError(String)
+} derive(Eq, @debug.Debug)
+pub fn MavError::equal(Self, Self) -> Bool
+pub fn MavError::not_equal(Self, Self) -> Bool
+pub fn MavError::to_repr(Self) -> @debug.Repr
+
+pub(all) enum MavFieldType {
+  Scalar(MavPrimitiveType, Bool)
+  FixedArrayType(MavPrimitiveType, Int32)
+} derive(Eq, @debug.Debug)
+pub fn MavFieldType::equal(Self, Self) -> Bool
+pub fn MavFieldType::not_equal(Self, Self) -> Bool
+pub fn MavFieldType::order_weight(Self) -> Int32
+pub fn MavFieldType::to_repr(Self) -> @debug.Repr
+pub fn MavFieldType::total_byte_len(Self) -> Int32
+
+pub(all) struct MavFrame {
+  header : MavHeader
+  payload : Bytes
+  checksum : UInt32
+  signature : MavSignature?
+} derive(Eq, @debug.Debug)
+pub fn MavFrame::equal(Self, Self) -> Bool
+pub fn MavFrame::not_equal(Self, Self) -> Bool
+pub fn MavFrame::to_repr(Self) -> @debug.Repr
+
+pub(all) struct MavHeader {
+  version : ProtocolVersion
+  incompat_flags : Byte
+  compat_flags : Byte
+  seq : Byte
+  sysid : Byte
+  compid : Byte
+  msgid : UInt32
+} derive(Eq, @debug.Debug)
+pub fn MavHeader::equal(Self, Self) -> Bool
+pub fn MavHeader::new_v1(seq~ : Byte, sysid~ : Byte, compid~ : Byte, msgid~ : UInt32) -> Self
+pub fn MavHeader::new_v2(seq~ : Byte, sysid~ : Byte, compid~ : Byte, msgid~ : UInt32, incompat_flags? : Byte, compat_flags? : Byte) -> Self
+pub fn MavHeader::not_equal(Self, Self) -> Bool
+pub fn MavHeader::to_repr(Self) -> @debug.Repr
+
+pub(all) enum MavMessage {
+  MsgHeartbeat(Heartbeat)
+  MsgSysStatus(SysStatus)
+  MsgPing(Ping)
+  MsgParamRequestRead(ParamRequestRead)
+  MsgParamValue(ParamValue)
+  MsgGpsRawInt(GpsRawInt)
+  MsgAttitude(Attitude)
+  MsgGlobalPositionInt(GlobalPositionInt)
+  MsgCommandLong(CommandLong)
+  MsgCommandAck(CommandAck)
+  MsgStatustext(Statustext)
+  MsgLoggingAck(LoggingAck)
+} derive(Eq, @debug.Debug)
+pub fn MavMessage::crc_extra(Self) -> Byte
+pub fn MavMessage::decode_from_frame(MavFrame) -> Result[Self, MavError]
+pub fn MavMessage::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MavMessage::encode_to_frame(Self, seq~ : Byte, sysid~ : Byte, compid~ : Byte, version? : ProtocolVersion, signing? : SigningContext?) -> Result[(Bytes, MavFrame), MavError]
+pub fn MavMessage::equal(Self, Self) -> Bool
+pub fn MavMessage::msg_id(Self) -> UInt32
+pub fn MavMessage::not_equal(Self, Self) -> Bool
+pub fn MavMessage::to_repr(Self) -> @debug.Repr
+
+pub(all) enum MavModeFlag {
+  CustomModeEnabled
+  AutoEnabled
+  GuidedEnabled
+  StabilizeEnabled
+  ManualInputEnabled
+  SafetyArmed
+} derive(Eq, @debug.Debug)
+pub fn MavModeFlag::equal(Self, Self) -> Bool
+pub fn MavModeFlag::from_uint(UInt32) -> Self?
+pub fn MavModeFlag::not_equal(Self, Self) -> Bool
+pub fn MavModeFlag::to_repr(Self) -> @debug.Repr
+pub fn MavModeFlag::to_uint(Self) -> UInt32
+
+pub(all) enum MavPrimitiveType {
+  UInt8
+  Int8
+  UInt16
+  Int16
+  UInt32
+  Int32
+  UInt64
+  Int64
+  Float32
+  Float64
+  Char
+} derive(Eq, @debug.Debug)
+pub fn MavPrimitiveType::byte_size(Self) -> Int32
+pub fn MavPrimitiveType::equal(Self, Self) -> Bool
+pub fn MavPrimitiveType::not_equal(Self, Self) -> Bool
+pub fn MavPrimitiveType::to_repr(Self) -> @debug.Repr
+
+pub(all) enum MavResult {
+  Accepted
+  TemporarilyRejected
+  Denied
+  Unsupported
+  Failed
+  InProgress
+} derive(Eq, @debug.Debug)
+pub fn MavResult::equal(Self, Self) -> Bool
+pub fn MavResult::from_uint(UInt32) -> Self?
+pub fn MavResult::not_equal(Self, Self) -> Bool
+pub fn MavResult::to_repr(Self) -> @debug.Repr
+pub fn MavResult::to_uint(Self) -> UInt32
+
+pub(all) enum MavSeverity {
+  Emergency
+  Alert
+  Critical
+  Error
+  Warning
+  Notice
+  Info
+  Debug
+} derive(Eq, @debug.Debug)
+pub fn MavSeverity::equal(Self, Self) -> Bool
+pub fn MavSeverity::from_uint(UInt32) -> Self?
+pub fn MavSeverity::not_equal(Self, Self) -> Bool
+pub fn MavSeverity::to_repr(Self) -> @debug.Repr
+pub fn MavSeverity::to_uint(Self) -> UInt32
+
+pub(all) struct MavSignature {
+  link_id : Byte
+  timestamp : UInt64
+  signature : FixedArray[Byte]
+} derive(Eq, @debug.Debug)
+pub fn MavSignature::equal(Self, Self) -> Bool
+pub fn MavSignature::not_equal(Self, Self) -> Bool
+pub fn MavSignature::to_repr(Self) -> @debug.Repr
+
+pub(all) enum MavState {
+  Uninit
+  Boot
+  Calibrating
+  Standby
+  Active
+  Critical
+  Emergency
+} derive(Eq, @debug.Debug)
+pub fn MavState::equal(Self, Self) -> Bool
+pub fn MavState::from_uint(UInt32) -> Self?
+pub fn MavState::not_equal(Self, Self) -> Bool
+pub fn MavState::to_repr(Self) -> @debug.Repr
+pub fn MavState::to_uint(Self) -> UInt32
+
+pub(all) enum MavType {
+  Generic
+  FixedWing
+  Quadrotor
+  Gcs
+} derive(Eq, @debug.Debug)
+pub fn MavType::equal(Self, Self) -> Bool
+pub fn MavType::from_uint(UInt32) -> Self?
+pub fn MavType::not_equal(Self, Self) -> Bool
+pub fn MavType::to_repr(Self) -> @debug.Repr
+pub fn MavType::to_uint(Self) -> UInt32
+
+pub(all) struct ParamRequestRead {
+  target_system : Byte
+  target_component : Byte
+  param_id : String
+  param_index : Int32
+} derive(Eq, @debug.Debug)
+pub fn ParamRequestRead::base_payload_len() -> Int32
+pub fn ParamRequestRead::crc_extra() -> Byte
+pub fn ParamRequestRead::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn ParamRequestRead::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn ParamRequestRead::equal(Self, Self) -> Bool
+pub fn ParamRequestRead::max_payload_len() -> Int32
+pub fn ParamRequestRead::msg_id() -> UInt32
+pub fn ParamRequestRead::not_equal(Self, Self) -> Bool
+pub fn ParamRequestRead::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ParamValue {
+  param_id : String
+  param_value : Float
+  param_type : Byte
+  param_count : UInt32
+  param_index : UInt32
+} derive(Eq, @debug.Debug)
+pub fn ParamValue::base_payload_len() -> Int32
+pub fn ParamValue::crc_extra() -> Byte
+pub fn ParamValue::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn ParamValue::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn ParamValue::equal(Self, Self) -> Bool
+pub fn ParamValue::max_payload_len() -> Int32
+pub fn ParamValue::msg_id() -> UInt32
+pub fn ParamValue::not_equal(Self, Self) -> Bool
+pub fn ParamValue::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ParseStreamEvent {
+  FrameDecoded(MavFrame)
+  FrameError(MavError)
+} derive(Eq, @debug.Debug)
+pub fn ParseStreamEvent::equal(Self, Self) -> Bool
+pub fn ParseStreamEvent::not_equal(Self, Self) -> Bool
+pub fn ParseStreamEvent::to_repr(Self) -> @debug.Repr
+
+pub(all) struct PayloadReader {
+  data : Bytes
+  mut pos : Int32
+  zero_extend : Bool
+} derive(Eq, @debug.Debug)
+pub fn PayloadReader::equal(Self, Self) -> Bool
+pub fn PayloadReader::new(Bytes, zero_extend? : Bool) -> Self
+pub fn PayloadReader::not_equal(Self, Self) -> Bool
+pub fn PayloadReader::read_byte(Self) -> Result[Byte, MavError]
+pub fn PayloadReader::read_char_array(Self, Int32) -> Result[String, MavError]
+pub fn PayloadReader::read_double(Self) -> Result[Double, MavError]
+pub fn PayloadReader::read_float(Self) -> Result[Float, MavError]
+pub fn PayloadReader::read_int16(Self) -> Result[Int32, MavError]
+pub fn PayloadReader::read_int32(Self) -> Result[Int32, MavError]
+pub fn PayloadReader::read_int64(Self) -> Result[Int64, MavError]
+pub fn PayloadReader::read_int8(Self) -> Result[Int32, MavError]
+pub fn PayloadReader::read_uint16(Self) -> Result[UInt32, MavError]
+pub fn PayloadReader::read_uint32(Self) -> Result[UInt32, MavError]
+pub fn PayloadReader::read_uint64(Self) -> Result[UInt64, MavError]
+pub fn PayloadReader::read_uint8(Self) -> Result[Byte, MavError]
+pub fn PayloadReader::to_repr(Self) -> @debug.Repr
+
+pub(all) struct PayloadWriter {
+  buf : Array[Byte]
+} derive(Eq, @debug.Debug)
+pub fn PayloadWriter::equal(Self, Self) -> Bool
+pub fn PayloadWriter::length(Self) -> Int32
+pub fn PayloadWriter::new(capacity? : Int32) -> Self
+pub fn PayloadWriter::not_equal(Self, Self) -> Bool
+pub fn PayloadWriter::to_bytes(Self) -> Bytes
+pub fn PayloadWriter::to_repr(Self) -> @debug.Repr
+pub fn PayloadWriter::to_wire_bytes(Self, truncate_zeros? : Bool) -> Bytes
+pub fn PayloadWriter::write_bytes(Self, Bytes) -> Unit
+pub fn PayloadWriter::write_char_array(Self, String, Int32) -> Unit
+pub fn PayloadWriter::write_double(Self, Double) -> Unit
+pub fn PayloadWriter::write_float(Self, Float) -> Unit
+pub fn PayloadWriter::write_int16(Self, Int32) -> Unit
+pub fn PayloadWriter::write_int32(Self, Int32) -> Unit
+pub fn PayloadWriter::write_int64(Self, Int64) -> Unit
+pub fn PayloadWriter::write_int8(Self, Int32) -> Unit
+pub fn PayloadWriter::write_uint16(Self, UInt32) -> Unit
+pub fn PayloadWriter::write_uint24(Self, UInt32) -> Unit
+pub fn PayloadWriter::write_uint32(Self, UInt32) -> Unit
+pub fn PayloadWriter::write_uint64(Self, UInt64) -> Unit
+pub fn PayloadWriter::write_uint8(Self, Byte) -> Unit
+
+pub(all) struct Ping {
+  time_usec : UInt64
+  seq : UInt32
+  target_system : Byte
+  target_component : Byte
+} derive(Eq, @debug.Debug)
+pub fn Ping::base_payload_len() -> Int32
+pub fn Ping::crc_extra() -> Byte
+pub fn Ping::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn Ping::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn Ping::equal(Self, Self) -> Bool
+pub fn Ping::max_payload_len() -> Int32
+pub fn Ping::msg_id() -> UInt32
+pub fn Ping::not_equal(Self, Self) -> Bool
+pub fn Ping::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ProtocolVersion {
+  V1
+  V2
+} derive(Eq, @debug.Debug)
+pub fn ProtocolVersion::equal(Self, Self) -> Bool
+pub fn ProtocolVersion::not_equal(Self, Self) -> Bool
+pub fn ProtocolVersion::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SigningContext {
+  secret_key : FixedArray[Byte]
+  link_id : Byte
+  mut timestamp : UInt64
+} derive(Eq, @debug.Debug)
+pub fn SigningContext::equal(Self, Self) -> Bool
+pub fn SigningContext::new(Bytes, link_id? : Byte, initial_timestamp? : UInt64) -> Result[Self, MavError]
+pub fn SigningContext::not_equal(Self, Self) -> Bool
+pub fn SigningContext::sign_frame_bytes(Self, Bytes) -> MavSignature
+pub fn SigningContext::to_repr(Self) -> @debug.Repr
+pub fn SigningContext::verify_frame_signature(Self, Bytes, MavSignature, enforce_replay_protection? : Bool) -> Result[Unit, MavError]
+
+pub(all) struct Statustext {
+  severity : Byte
+  text : String
+  id : UInt32
+  chunk_seq : Byte
+} derive(Eq, @debug.Debug)
+pub fn Statustext::base_payload_len() -> Int32
+pub fn Statustext::crc_extra() -> Byte
+pub fn Statustext::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn Statustext::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn Statustext::equal(Self, Self) -> Bool
+pub fn Statustext::max_payload_len() -> Int32
+pub fn Statustext::msg_id() -> UInt32
+pub fn Statustext::not_equal(Self, Self) -> Bool
+pub fn Statustext::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SysStatus {
+  onboard_control_sensors_present : UInt32
+  onboard_control_sensors_enabled : UInt32
+  onboard_control_sensors_health : UInt32
+  load : UInt32
+  voltage_battery : UInt32
+  current_battery : Int32
+  battery_remaining : Int32
+  drop_rate_comm : UInt32
+  errors_comm : UInt32
+  errors_count1 : UInt32
+  errors_count2 : UInt32
+  errors_count3 : UInt32
+  errors_count4 : UInt32
+} derive(Eq, @debug.Debug)
+pub fn SysStatus::base_payload_len() -> Int32
+pub fn SysStatus::crc_extra() -> Byte
+pub fn SysStatus::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn SysStatus::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn SysStatus::equal(Self, Self) -> Bool
+pub fn SysStatus::max_payload_len() -> Int32
+pub fn SysStatus::msg_id() -> UInt32
+pub fn SysStatus::not_equal(Self, Self) -> Bool
+pub fn SysStatus::to_repr(Self) -> @debug.Repr
+
+pub(all) struct X25Crc {
+  mut value : UInt32
+} derive(Eq, @debug.Debug)
+pub fn X25Crc::accumulate_ascii(Self, String) -> Unit
+pub fn X25Crc::accumulate_byte(Self, Byte) -> Unit
+pub fn X25Crc::accumulate_bytes(Self, Bytes, start? : Int32, len? : Int32) -> Unit
+pub fn X25Crc::equal(Self, Self) -> Bool
+pub fn X25Crc::high_byte(Self) -> Byte
+pub fn X25Crc::low_byte(Self) -> Byte
+pub fn X25Crc::new() -> Self
+pub fn X25Crc::not_equal(Self, Self) -> Bool
+pub fn X25Crc::reset(Self) -> Unit
+pub fn X25Crc::to_crc_extra(Self) -> Byte
+pub fn X25Crc::to_repr(Self) -> @debug.Repr
+
+pub(all) struct XmlEnumDef {
+  name : String
+  bitmask : Bool
+  description : String
+  entries : Array[XmlEnumEntry]
+} derive(Eq, @debug.Debug)
+pub fn XmlEnumDef::equal(Self, Self) -> Bool
+pub fn XmlEnumDef::not_equal(Self, Self) -> Bool
+pub fn XmlEnumDef::to_repr(Self) -> @debug.Repr
+
+pub(all) struct XmlEnumEntry {
+  name : String
+  value : UInt32
+  description : String
+} derive(Eq, @debug.Debug)
+pub fn XmlEnumEntry::equal(Self, Self) -> Bool
+pub fn XmlEnumEntry::not_equal(Self, Self) -> Bool
+pub fn XmlEnumEntry::to_repr(Self) -> @debug.Repr
+
+pub(all) struct XmlFieldDef {
+  wire_type : String
+  parsed_type : MavFieldType
+  name : String
+  enum_name : String?
+  units : String?
+  description : String
+  is_extension : Bool
+  wire_offset : Int32
+} derive(Eq, @debug.Debug)
+pub fn XmlFieldDef::equal(Self, Self) -> Bool
+pub fn XmlFieldDef::not_equal(Self, Self) -> Bool
+pub fn XmlFieldDef::to_repr(Self) -> @debug.Repr
+
+pub(all) struct XmlMessageDef {
+  id : UInt32
+  name : String
+  description : String
+  fields : Array[XmlFieldDef]
+  wire_ordered_fields : Array[XmlFieldDef]
+  base_payload_len : Int32
+  max_payload_len : Int32
+  crc_extra : Byte
+} derive(Eq, @debug.Debug)
+pub fn XmlMessageDef::equal(Self, Self) -> Bool
+pub fn XmlMessageDef::not_equal(Self, Self) -> Bool
+pub fn XmlMessageDef::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

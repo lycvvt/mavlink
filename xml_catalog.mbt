@@ -145,6 +145,28 @@ pub let official_standard_xml : String =
   #|      <entry value="5" name="GPS_FIX_TYPE_RTK_FLOAT"/>
   #|      <entry value="6" name="GPS_FIX_TYPE_RTK_FIXED"/>
   #|    </enum>
+  #|    <enum name="MAV_FRAME">
+  #|      <description>Coordinate frames used by MAVLink mission items and position messages.</description>
+  #|      <entry value="0" name="MAV_FRAME_GLOBAL"/>
+  #|      <entry value="1" name="MAV_FRAME_LOCAL_NED"/>
+  #|      <entry value="3" name="MAV_FRAME_GLOBAL_RELATIVE_ALT"/>
+  #|      <entry value="5" name="MAV_FRAME_GLOBAL_INT"/>
+  #|      <entry value="6" name="MAV_FRAME_GLOBAL_RELATIVE_ALT_INT"/>
+  #|    </enum>
+  #|    <enum name="MAV_MISSION_RESULT">
+  #|      <description>Result of a MAVLink mission operation (MAV_MISSION_ACK).</description>
+  #|      <entry value="0" name="MAV_MISSION_ACCEPTED"/>
+  #|      <entry value="1" name="MAV_MISSION_ERROR"/>
+  #|      <entry value="2" name="MAV_MISSION_UNSUPPORTED_FRAME"/>
+  #|      <entry value="3" name="MAV_MISSION_UNSUPPORTED"/>
+  #|      <entry value="13" name="MAV_MISSION_INVALID_SEQUENCE"/>
+  #|    </enum>
+  #|    <enum name="MAV_MISSION_TYPE">
+  #|      <description>Type of mission items being requested, uploaded, or cleared.</description>
+  #|      <entry value="0" name="MAV_MISSION_TYPE_MISSION"/>
+  #|      <entry value="1" name="MAV_MISSION_TYPE_FENCE"/>
+  #|      <entry value="2" name="MAV_MISSION_TYPE_RALLY"/>
+  #|    </enum>
   #|  </enums>
   #|  <messages>
   #|    <message id="0" name="HEARTBEAT">
@@ -172,6 +194,11 @@ pub let official_standard_xml : String =
   #|      <field type="uint16_t" name="errors_count3">Autopilot-specific errors 3.</field>
   #|      <field type="uint16_t" name="errors_count4">Autopilot-specific errors 4.</field>
   #|    </message>
+  #|    <message id="2" name="SYSTEM_TIME">
+  #|      <description>The system time is the time of the master clock, typically the computer clock of the main onboard computer.</description>
+  #|      <field type="uint64_t" name="time_unix_usec" units="us">Timestamp (UNIX epoch time).</field>
+  #|      <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
+  #|    </message>
   #|    <message id="4" name="PING">
   #|      <description>A ping message either requesting or responding to a ping.</description>
   #|      <field type="uint64_t" name="time_usec" units="us">Timestamp (UNIX Epoch time or time since system boot).</field>
@@ -193,6 +220,14 @@ pub let official_standard_xml : String =
   #|      <field type="uint8_t" name="param_type">Onboard parameter type.</field>
   #|      <field type="uint16_t" name="param_count">Total number of onboard parameters.</field>
   #|      <field type="uint16_t" name="param_index">Index of this onboard parameter.</field>
+  #|    </message>
+  #|    <message id="23" name="PARAM_SET">
+  #|      <description>Set a parameter value (write new value to permanent storage).</description>
+  #|      <field type="uint8_t" name="target_system">System ID.</field>
+  #|      <field type="uint8_t" name="target_component">Component ID.</field>
+  #|      <field type="char[16]" name="param_id">Onboard parameter id.</field>
+  #|      <field type="float" name="param_value">Onboard parameter value.</field>
+  #|      <field type="uint8_t" name="param_type">Onboard parameter type.</field>
   #|    </message>
   #|    <message id="24" name="GPS_RAW_INT">
   #|      <description>The global position, as returned by the Global Positioning System (GPS).</description>
@@ -224,6 +259,16 @@ pub let official_standard_xml : String =
   #|      <field type="float" name="pitchspeed" units="rad/s">Pitch angular speed.</field>
   #|      <field type="float" name="yawspeed" units="rad/s">Yaw angular speed.</field>
   #|    </message>
+  #|    <message id="32" name="LOCAL_POSITION_NED">
+  #|      <description>The filtered local position (e.g. fused computer vision and accelerometers) in NED frame.</description>
+  #|      <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
+  #|      <field type="float" name="x" units="m">X Position (North).</field>
+  #|      <field type="float" name="y" units="m">Y Position (East).</field>
+  #|      <field type="float" name="z" units="m">Z Position (Down).</field>
+  #|      <field type="float" name="vx" units="m/s">X Speed.</field>
+  #|      <field type="float" name="vy" units="m/s">Y Speed.</field>
+  #|      <field type="float" name="vz" units="m/s">Z Speed.</field>
+  #|    </message>
   #|    <message id="33" name="GLOBAL_POSITION_INT">
   #|      <description>The filtered global position (e.g. fused GPS and accelerometers).</description>
   #|      <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
@@ -235,6 +280,65 @@ pub let official_standard_xml : String =
   #|      <field type="int16_t" name="vy" units="cm/s">Ground Y Speed (Longitude, positive east).</field>
   #|      <field type="int16_t" name="vz" units="cm/s">Ground Z Speed (Altitude, positive down).</field>
   #|      <field type="uint16_t" name="hdg" units="cdeg">Vehicle heading (yaw angle), 0.0..359.99 degrees.</field>
+  #|    </message>
+  #|    <message id="35" name="RC_CHANNELS_RAW">
+  #|      <description>The RAW values of the RC channels received.</description>
+  #|      <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
+  #|      <field type="uint8_t" name="port">Servo output port (set of 8 outputs = 1 port).</field>
+  #|      <field type="uint16_t" name="chan1_raw" units="us">RC channel 1 value.</field>
+  #|      <field type="uint16_t" name="chan2_raw" units="us">RC channel 2 value.</field>
+  #|      <field type="uint16_t" name="chan3_raw" units="us">RC channel 3 value.</field>
+  #|      <field type="uint16_t" name="chan4_raw" units="us">RC channel 4 value.</field>
+  #|      <field type="uint16_t" name="chan5_raw" units="us">RC channel 5 value.</field>
+  #|      <field type="uint16_t" name="chan6_raw" units="us">RC channel 6 value.</field>
+  #|      <field type="uint16_t" name="chan7_raw" units="us">RC channel 7 value.</field>
+  #|      <field type="uint16_t" name="chan8_raw" units="us">RC channel 8 value.</field>
+  #|      <field type="uint8_t" name="rssi">Receive signal strength indicator in device-dependent units/scale.</field>
+  #|    </message>
+  #|    <message id="44" name="MISSION_COUNT">
+  #|      <description>This message is emitted as response to MISSION_REQUEST_LIST by the MAV and to initiate a write transaction.</description>
+  #|      <field type="uint8_t" name="target_system">System ID.</field>
+  #|      <field type="uint8_t" name="target_component">Component ID.</field>
+  #|      <field type="uint16_t" name="count">Number of mission items in the sequence.</field>
+  #|      <extensions/>
+  #|      <field type="uint8_t" name="mission_type" enum="MAV_MISSION_TYPE">Mission type.</field>
+  #|      <field type="uint32_t" name="opaque_id">Id of current on-vehicle mission, fence, or rally point plan.</field>
+  #|    </message>
+  #|    <message id="47" name="MISSION_ACK">
+  #|      <description>Acknowledgment message during waypoint handling.</description>
+  #|      <field type="uint8_t" name="target_system">System ID.</field>
+  #|      <field type="uint8_t" name="target_component">Component ID.</field>
+  #|      <field type="uint8_t" name="type" enum="MAV_MISSION_RESULT">Mission result.</field>
+  #|      <extensions/>
+  #|      <field type="uint8_t" name="mission_type" enum="MAV_MISSION_TYPE">Mission type.</field>
+  #|      <field type="uint32_t" name="opaque_id">Id of current on-vehicle mission, fence, or rally point plan.</field>
+  #|    </message>
+  #|    <message id="51" name="MISSION_REQUEST_INT">
+  #|      <description>Request the information of the mission item with the sequence number seq.</description>
+  #|      <field type="uint8_t" name="target_system">System ID.</field>
+  #|      <field type="uint8_t" name="target_component">Component ID.</field>
+  #|      <field type="uint16_t" name="seq">Sequence.</field>
+  #|      <extensions/>
+  #|      <field type="uint8_t" name="mission_type" enum="MAV_MISSION_TYPE">Mission type.</field>
+  #|    </message>
+  #|    <message id="73" name="MISSION_ITEM_INT">
+  #|      <description>Message encoding a mission item using integer latitude/longitude in degE7.</description>
+  #|      <field type="uint8_t" name="target_system">System ID.</field>
+  #|      <field type="uint8_t" name="target_component">Component ID.</field>
+  #|      <field type="uint16_t" name="seq">Waypoint ID (sequence number). Starts at zero.</field>
+  #|      <field type="uint8_t" name="frame" enum="MAV_FRAME">The coordinate system of the waypoint.</field>
+  #|      <field type="uint16_t" name="command" enum="MAV_CMD">The scheduled action for the waypoint.</field>
+  #|      <field type="uint8_t" name="current">false:0, true:1.</field>
+  #|      <field type="uint8_t" name="autocontinue">Autocontinue to next waypoint.</field>
+  #|      <field type="float" name="param1">PARAM1, see MAV_CMD enum.</field>
+  #|      <field type="float" name="param2">PARAM2, see MAV_CMD enum.</field>
+  #|      <field type="float" name="param3">PARAM3, see MAV_CMD enum.</field>
+  #|      <field type="float" name="param4">PARAM4, see MAV_CMD enum.</field>
+  #|      <field type="int32_t" name="x">PARAM5 / local: x position in meters * 1e4, global: latitude in degrees * 10^7.</field>
+  #|      <field type="int32_t" name="y">PARAM6 / y position: local: x position in meters * 1e4, global: longitude in degrees * 10^7.</field>
+  #|      <field type="float" name="z">PARAM7 / z position: global: altitude in meters (relative or absolute, depending on frame).</field>
+  #|      <extensions/>
+  #|      <field type="uint8_t" name="mission_type" enum="MAV_MISSION_TYPE">Mission type.</field>
   #|    </message>
   #|    <message id="76" name="COMMAND_LONG">
   #|      <description>Send a command with up to seven parameters to the MAV.</description>

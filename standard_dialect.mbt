@@ -356,6 +356,123 @@ pub fn GpsFixType::from_uint(v : UInt32) -> GpsFixType? {
 }
 
 ///|
+/// Coordinate frames used by MAVLink mission items and position messages.
+pub(all) enum MavFrame {
+  Global
+  LocalNed
+  GlobalRelativeAlt
+  GlobalInt
+  GlobalRelativeAltInt
+} derive(Eq, Debug)
+
+///|
+pub extend MavFrame with Eq::{not_equal, equal}
+
+///|
+pub extend MavFrame with @debug.Debug::{to_repr}
+
+///|
+/// Convert `MavFrame` to its raw MAVLink numeric value.
+pub fn MavFrame::to_uint(self : MavFrame) -> UInt32 {
+  match self {
+    Global => 0U
+    LocalNed => 1U
+    GlobalRelativeAlt => 3U
+    GlobalInt => 5U
+    GlobalRelativeAltInt => 6U
+  }
+}
+
+///|
+/// Decode `MavFrame` from its raw MAVLink numeric value.
+pub fn MavFrame::from_uint(v : UInt32) -> MavFrame? {
+  match v {
+    0U => Some(Global)
+    1U => Some(LocalNed)
+    3U => Some(GlobalRelativeAlt)
+    5U => Some(GlobalInt)
+    6U => Some(GlobalRelativeAltInt)
+    _ => None
+  }
+}
+
+///|
+/// Result of a MAVLink mission operation (MAV_MISSION_ACK).
+pub(all) enum MavMissionResult {
+  MavMissionAccepted
+  MavMissionError
+  MavMissionUnsupportedFrame
+  MavMissionUnsupported
+  MavMissionInvalidSequence
+} derive(Eq, Debug)
+
+///|
+pub extend MavMissionResult with Eq::{not_equal, equal}
+
+///|
+pub extend MavMissionResult with @debug.Debug::{to_repr}
+
+///|
+/// Convert `MavMissionResult` to its raw MAVLink numeric value.
+pub fn MavMissionResult::to_uint(self : MavMissionResult) -> UInt32 {
+  match self {
+    MavMissionAccepted => 0U
+    MavMissionError => 1U
+    MavMissionUnsupportedFrame => 2U
+    MavMissionUnsupported => 3U
+    MavMissionInvalidSequence => 13U
+  }
+}
+
+///|
+/// Decode `MavMissionResult` from its raw MAVLink numeric value.
+pub fn MavMissionResult::from_uint(v : UInt32) -> MavMissionResult? {
+  match v {
+    0U => Some(MavMissionAccepted)
+    1U => Some(MavMissionError)
+    2U => Some(MavMissionUnsupportedFrame)
+    3U => Some(MavMissionUnsupported)
+    13U => Some(MavMissionInvalidSequence)
+    _ => None
+  }
+}
+
+///|
+/// Type of mission items being requested, uploaded, or cleared.
+pub(all) enum MavMissionType {
+  Mission
+  Fence
+  Rally
+} derive(Eq, Debug)
+
+///|
+pub extend MavMissionType with Eq::{not_equal, equal}
+
+///|
+pub extend MavMissionType with @debug.Debug::{to_repr}
+
+///|
+/// Convert `MavMissionType` to its raw MAVLink numeric value.
+pub fn MavMissionType::to_uint(self : MavMissionType) -> UInt32 {
+  match self {
+    Mission => 0U
+    Fence => 1U
+    Rally => 2U
+  }
+}
+
+///|
+/// Decode `MavMissionType` from its raw MAVLink numeric value.
+pub fn MavMissionType::from_uint(v : UInt32) -> MavMissionType? {
+  match v {
+    0U => Some(Mission)
+    1U => Some(Fence)
+    2U => Some(Rally)
+    _ => None
+  }
+}
+
+///|
 /// The heartbeat message shows that a system or component is present and responding.
 /// - MAVLink Message `HEARTBEAT` (ID: 0, CRC_EXTRA: 50, base_len: 9B, max_len: 9B)
 pub(all) struct Heartbeat {
@@ -589,6 +706,70 @@ pub fn SysStatus::decode_payload(
 }
 
 ///|
+/// The system time is the time of the master clock, typically the computer clock of the main onboard computer.
+/// - MAVLink Message `SYSTEM_TIME` (ID: 2, CRC_EXTRA: 137, base_len: 12B, max_len: 12B)
+pub(all) struct SystemTime {
+  time_unix_usec : UInt64
+  time_boot_ms : UInt32
+} derive(Eq, Debug)
+
+///|
+pub extend SystemTime with Eq::{not_equal, equal}
+
+///|
+pub extend SystemTime with @debug.Debug::{to_repr}
+
+///|
+pub fn SystemTime::msg_id() -> UInt32 {
+  2U
+}
+
+///|
+pub fn SystemTime::crc_extra() -> Byte {
+  b'\x89'
+}
+
+///|
+pub fn SystemTime::base_payload_len() -> Int32 {
+  12
+}
+
+///|
+pub fn SystemTime::max_payload_len() -> Int32 {
+  12
+}
+
+///|
+/// Serialize `SystemTime` into wire-ordered little-endian payload bytes.
+pub fn SystemTime::encode_payload(
+  self : SystemTime,
+  v2~ : Bool = true,
+) -> Bytes {
+  let w = PayloadWriter::new(capacity=12)
+  w.write_uint64(self.time_unix_usec)
+  w.write_uint32(self.time_boot_ms)
+  w.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `SystemTime` from wire-ordered little-endian payload bytes.
+pub fn SystemTime::decode_payload(
+  payload : Bytes,
+  v2~ : Bool = true,
+) -> Result[SystemTime, MavError] {
+  let r = PayloadReader::new(payload, zero_extend=v2)
+  let time_unix_usec = match r.read_uint64() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let time_boot_ms = match r.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ time_unix_usec, time_boot_ms, })
+}
+
+///|
 /// A ping message either requesting or responding to a ping.
 /// - MAVLink Message `PING` (ID: 4, CRC_EXTRA: 237, base_len: 14B, max_len: 14B)
 pub(all) struct Ping {
@@ -817,6 +998,85 @@ pub fn ParamValue::decode_payload(
     Err(e) => return Err(e)
   }
   Ok({ param_id, param_value, param_type, param_count, param_index, })
+}
+
+///|
+/// Set a parameter value (write new value to permanent storage).
+/// - MAVLink Message `PARAM_SET` (ID: 23, CRC_EXTRA: 168, base_len: 23B, max_len: 23B)
+pub(all) struct ParamSet {
+  target_system : Byte
+  target_component : Byte
+  param_id : String
+  param_value : Float
+  param_type : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend ParamSet with Eq::{not_equal, equal}
+
+///|
+pub extend ParamSet with @debug.Debug::{to_repr}
+
+///|
+pub fn ParamSet::msg_id() -> UInt32 {
+  23U
+}
+
+///|
+pub fn ParamSet::crc_extra() -> Byte {
+  b'\xA8'
+}
+
+///|
+pub fn ParamSet::base_payload_len() -> Int32 {
+  23
+}
+
+///|
+pub fn ParamSet::max_payload_len() -> Int32 {
+  23
+}
+
+///|
+/// Serialize `ParamSet` into wire-ordered little-endian payload bytes.
+pub fn ParamSet::encode_payload(self : ParamSet, v2~ : Bool = true) -> Bytes {
+  let w = PayloadWriter::new(capacity=23)
+  w.write_float(self.param_value)
+  w.write_uint8(self.target_system)
+  w.write_uint8(self.target_component)
+  w.write_char_array(self.param_id, 16)
+  w.write_uint8(self.param_type)
+  w.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `ParamSet` from wire-ordered little-endian payload bytes.
+pub fn ParamSet::decode_payload(
+  payload : Bytes,
+  v2~ : Bool = true,
+) -> Result[ParamSet, MavError] {
+  let r = PayloadReader::new(payload, zero_extend=v2)
+  let param_value = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let param_id = match r.read_char_array(16) {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let param_type = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, target_component, param_id, param_value, param_type, })
 }
 
 ///|
@@ -1075,6 +1335,100 @@ pub fn Attitude::decode_payload(
 }
 
 ///|
+/// The filtered local position (e.g. fused computer vision and accelerometers) in NED frame.
+/// - MAVLink Message `LOCAL_POSITION_NED` (ID: 32, CRC_EXTRA: 185, base_len: 28B, max_len: 28B)
+pub(all) struct LocalPositionNed {
+  time_boot_ms : UInt32
+  x : Float
+  y : Float
+  z : Float
+  vx : Float
+  vy : Float
+  vz : Float
+} derive(Eq, Debug)
+
+///|
+pub extend LocalPositionNed with Eq::{not_equal, equal}
+
+///|
+pub extend LocalPositionNed with @debug.Debug::{to_repr}
+
+///|
+pub fn LocalPositionNed::msg_id() -> UInt32 {
+  32U
+}
+
+///|
+pub fn LocalPositionNed::crc_extra() -> Byte {
+  b'\xB9'
+}
+
+///|
+pub fn LocalPositionNed::base_payload_len() -> Int32 {
+  28
+}
+
+///|
+pub fn LocalPositionNed::max_payload_len() -> Int32 {
+  28
+}
+
+///|
+/// Serialize `LocalPositionNed` into wire-ordered little-endian payload bytes.
+pub fn LocalPositionNed::encode_payload(
+  self : LocalPositionNed,
+  v2~ : Bool = true,
+) -> Bytes {
+  let w = PayloadWriter::new(capacity=28)
+  w.write_uint32(self.time_boot_ms)
+  w.write_float(self.x)
+  w.write_float(self.y)
+  w.write_float(self.z)
+  w.write_float(self.vx)
+  w.write_float(self.vy)
+  w.write_float(self.vz)
+  w.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `LocalPositionNed` from wire-ordered little-endian payload bytes.
+pub fn LocalPositionNed::decode_payload(
+  payload : Bytes,
+  v2~ : Bool = true,
+) -> Result[LocalPositionNed, MavError] {
+  let r = PayloadReader::new(payload, zero_extend=v2)
+  let time_boot_ms = match r.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let x = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let y = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let z = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let vx = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let vy = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let vz = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ time_boot_ms, x, y, z, vx, vy, vz, })
+}
+
+///|
 /// The filtered global position (e.g. fused GPS and accelerometers).
 /// - MAVLink Message `GLOBAL_POSITION_INT` (ID: 33, CRC_EXTRA: 104, base_len: 28B, max_len: 28B)
 pub(all) struct GlobalPositionInt {
@@ -1178,6 +1532,542 @@ pub fn GlobalPositionInt::decode_payload(
     Err(e) => return Err(e)
   }
   Ok({ time_boot_ms, lat, lon, alt, relative_alt, vx, vy, vz, hdg, })
+}
+
+///|
+/// The RAW values of the RC channels received.
+/// - MAVLink Message `RC_CHANNELS_RAW` (ID: 35, CRC_EXTRA: 244, base_len: 22B, max_len: 22B)
+pub(all) struct RcChannelsRaw {
+  time_boot_ms : UInt32
+  port : Byte
+  chan1_raw : UInt32
+  chan2_raw : UInt32
+  chan3_raw : UInt32
+  chan4_raw : UInt32
+  chan5_raw : UInt32
+  chan6_raw : UInt32
+  chan7_raw : UInt32
+  chan8_raw : UInt32
+  rssi : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend RcChannelsRaw with Eq::{not_equal, equal}
+
+///|
+pub extend RcChannelsRaw with @debug.Debug::{to_repr}
+
+///|
+pub fn RcChannelsRaw::msg_id() -> UInt32 {
+  35U
+}
+
+///|
+pub fn RcChannelsRaw::crc_extra() -> Byte {
+  b'\xF4'
+}
+
+///|
+pub fn RcChannelsRaw::base_payload_len() -> Int32 {
+  22
+}
+
+///|
+pub fn RcChannelsRaw::max_payload_len() -> Int32 {
+  22
+}
+
+///|
+/// Serialize `RcChannelsRaw` into wire-ordered little-endian payload bytes.
+pub fn RcChannelsRaw::encode_payload(
+  self : RcChannelsRaw,
+  v2~ : Bool = true,
+) -> Bytes {
+  let w = PayloadWriter::new(capacity=22)
+  w.write_uint32(self.time_boot_ms)
+  w.write_uint16(self.chan1_raw)
+  w.write_uint16(self.chan2_raw)
+  w.write_uint16(self.chan3_raw)
+  w.write_uint16(self.chan4_raw)
+  w.write_uint16(self.chan5_raw)
+  w.write_uint16(self.chan6_raw)
+  w.write_uint16(self.chan7_raw)
+  w.write_uint16(self.chan8_raw)
+  w.write_uint8(self.port)
+  w.write_uint8(self.rssi)
+  w.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `RcChannelsRaw` from wire-ordered little-endian payload bytes.
+pub fn RcChannelsRaw::decode_payload(
+  payload : Bytes,
+  v2~ : Bool = true,
+) -> Result[RcChannelsRaw, MavError] {
+  let r = PayloadReader::new(payload, zero_extend=v2)
+  let time_boot_ms = match r.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan1_raw = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan2_raw = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan3_raw = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan4_raw = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan5_raw = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan6_raw = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan7_raw = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan8_raw = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let port = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let rssi = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    time_boot_ms,
+    port,
+    chan1_raw,
+    chan2_raw,
+    chan3_raw,
+    chan4_raw,
+    chan5_raw,
+    chan6_raw,
+    chan7_raw,
+    chan8_raw,
+    rssi,
+  })
+}
+
+///|
+/// This message is emitted as response to MISSION_REQUEST_LIST by the MAV and to initiate a write transaction.
+/// - MAVLink Message `MISSION_COUNT` (ID: 44, CRC_EXTRA: 221, base_len: 4B, max_len: 9B)
+pub(all) struct MissionCount {
+  target_system : Byte
+  target_component : Byte
+  count : UInt32
+  mission_type : Byte
+  opaque_id : UInt32
+} derive(Eq, Debug)
+
+///|
+pub extend MissionCount with Eq::{not_equal, equal}
+
+///|
+pub extend MissionCount with @debug.Debug::{to_repr}
+
+///|
+pub fn MissionCount::msg_id() -> UInt32 {
+  44U
+}
+
+///|
+pub fn MissionCount::crc_extra() -> Byte {
+  b'\xDD'
+}
+
+///|
+pub fn MissionCount::base_payload_len() -> Int32 {
+  4
+}
+
+///|
+pub fn MissionCount::max_payload_len() -> Int32 {
+  9
+}
+
+///|
+/// Serialize `MissionCount` into wire-ordered little-endian payload bytes.
+pub fn MissionCount::encode_payload(
+  self : MissionCount,
+  v2~ : Bool = true,
+) -> Bytes {
+  let w = PayloadWriter::new(capacity=9)
+  w.write_uint16(self.count)
+  w.write_uint8(self.target_system)
+  w.write_uint8(self.target_component)
+  if v2 {
+    w.write_uint8(self.mission_type)
+    w.write_uint32(self.opaque_id)
+  }
+  w.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MissionCount` from wire-ordered little-endian payload bytes.
+pub fn MissionCount::decode_payload(
+  payload : Bytes,
+  v2~ : Bool = true,
+) -> Result[MissionCount, MavError] {
+  let r = PayloadReader::new(payload, zero_extend=v2)
+  let count = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mission_type = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let opaque_id = match r.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, target_component, count, mission_type, opaque_id, })
+}
+
+///|
+/// Acknowledgment message during waypoint handling.
+/// - MAVLink Message `MISSION_ACK` (ID: 47, CRC_EXTRA: 153, base_len: 3B, max_len: 8B)
+pub(all) struct MissionAck {
+  target_system : Byte
+  target_component : Byte
+  mav_type : Byte
+  mission_type : Byte
+  opaque_id : UInt32
+} derive(Eq, Debug)
+
+///|
+pub extend MissionAck with Eq::{not_equal, equal}
+
+///|
+pub extend MissionAck with @debug.Debug::{to_repr}
+
+///|
+pub fn MissionAck::msg_id() -> UInt32 {
+  47U
+}
+
+///|
+pub fn MissionAck::crc_extra() -> Byte {
+  b'\x99'
+}
+
+///|
+pub fn MissionAck::base_payload_len() -> Int32 {
+  3
+}
+
+///|
+pub fn MissionAck::max_payload_len() -> Int32 {
+  8
+}
+
+///|
+/// Serialize `MissionAck` into wire-ordered little-endian payload bytes.
+pub fn MissionAck::encode_payload(
+  self : MissionAck,
+  v2~ : Bool = true,
+) -> Bytes {
+  let w = PayloadWriter::new(capacity=8)
+  w.write_uint8(self.target_system)
+  w.write_uint8(self.target_component)
+  w.write_uint8(self.mav_type)
+  if v2 {
+    w.write_uint8(self.mission_type)
+    w.write_uint32(self.opaque_id)
+  }
+  w.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MissionAck` from wire-ordered little-endian payload bytes.
+pub fn MissionAck::decode_payload(
+  payload : Bytes,
+  v2~ : Bool = true,
+) -> Result[MissionAck, MavError] {
+  let r = PayloadReader::new(payload, zero_extend=v2)
+  let target_system = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mav_type = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mission_type = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let opaque_id = match r.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, target_component, mav_type, mission_type, opaque_id, })
+}
+
+///|
+/// Request the information of the mission item with the sequence number seq.
+/// - MAVLink Message `MISSION_REQUEST_INT` (ID: 51, CRC_EXTRA: 196, base_len: 4B, max_len: 5B)
+pub(all) struct MissionRequestInt {
+  target_system : Byte
+  target_component : Byte
+  seq : UInt32
+  mission_type : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend MissionRequestInt with Eq::{not_equal, equal}
+
+///|
+pub extend MissionRequestInt with @debug.Debug::{to_repr}
+
+///|
+pub fn MissionRequestInt::msg_id() -> UInt32 {
+  51U
+}
+
+///|
+pub fn MissionRequestInt::crc_extra() -> Byte {
+  b'\xC4'
+}
+
+///|
+pub fn MissionRequestInt::base_payload_len() -> Int32 {
+  4
+}
+
+///|
+pub fn MissionRequestInt::max_payload_len() -> Int32 {
+  5
+}
+
+///|
+/// Serialize `MissionRequestInt` into wire-ordered little-endian payload bytes.
+pub fn MissionRequestInt::encode_payload(
+  self : MissionRequestInt,
+  v2~ : Bool = true,
+) -> Bytes {
+  let w = PayloadWriter::new(capacity=5)
+  w.write_uint16(self.seq)
+  w.write_uint8(self.target_system)
+  w.write_uint8(self.target_component)
+  if v2 {
+    w.write_uint8(self.mission_type)
+  }
+  w.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MissionRequestInt` from wire-ordered little-endian payload bytes.
+pub fn MissionRequestInt::decode_payload(
+  payload : Bytes,
+  v2~ : Bool = true,
+) -> Result[MissionRequestInt, MavError] {
+  let r = PayloadReader::new(payload, zero_extend=v2)
+  let seq = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mission_type = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, target_component, seq, mission_type, })
+}
+
+///|
+/// Message encoding a mission item using integer latitude/longitude in degE7.
+/// - MAVLink Message `MISSION_ITEM_INT` (ID: 73, CRC_EXTRA: 38, base_len: 37B, max_len: 38B)
+pub(all) struct MissionItemInt {
+  target_system : Byte
+  target_component : Byte
+  seq : UInt32
+  frame : Byte
+  command : UInt32
+  current : Byte
+  autocontinue : Byte
+  param1 : Float
+  param2 : Float
+  param3 : Float
+  param4 : Float
+  x : Int32
+  y : Int32
+  z : Float
+  mission_type : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend MissionItemInt with Eq::{not_equal, equal}
+
+///|
+pub extend MissionItemInt with @debug.Debug::{to_repr}
+
+///|
+pub fn MissionItemInt::msg_id() -> UInt32 {
+  73U
+}
+
+///|
+pub fn MissionItemInt::crc_extra() -> Byte {
+  b'\x26'
+}
+
+///|
+pub fn MissionItemInt::base_payload_len() -> Int32 {
+  37
+}
+
+///|
+pub fn MissionItemInt::max_payload_len() -> Int32 {
+  38
+}
+
+///|
+/// Serialize `MissionItemInt` into wire-ordered little-endian payload bytes.
+pub fn MissionItemInt::encode_payload(
+  self : MissionItemInt,
+  v2~ : Bool = true,
+) -> Bytes {
+  let w = PayloadWriter::new(capacity=38)
+  w.write_float(self.param1)
+  w.write_float(self.param2)
+  w.write_float(self.param3)
+  w.write_float(self.param4)
+  w.write_int32(self.x)
+  w.write_int32(self.y)
+  w.write_float(self.z)
+  w.write_uint16(self.seq)
+  w.write_uint16(self.command)
+  w.write_uint8(self.target_system)
+  w.write_uint8(self.target_component)
+  w.write_uint8(self.frame)
+  w.write_uint8(self.current)
+  w.write_uint8(self.autocontinue)
+  if v2 {
+    w.write_uint8(self.mission_type)
+  }
+  w.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MissionItemInt` from wire-ordered little-endian payload bytes.
+pub fn MissionItemInt::decode_payload(
+  payload : Bytes,
+  v2~ : Bool = true,
+) -> Result[MissionItemInt, MavError] {
+  let r = PayloadReader::new(payload, zero_extend=v2)
+  let param1 = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let param2 = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let param3 = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let param4 = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let x = match r.read_int32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let y = match r.read_int32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let z = match r.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let seq = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let command = match r.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let frame = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let current = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let autocontinue = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mission_type = match r.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    target_system,
+    target_component,
+    seq,
+    frame,
+    command,
+    current,
+    autocontinue,
+    param1,
+    param2,
+    param3,
+    param4,
+    x,
+    y,
+    z,
+    mission_type,
+  })
 }
 
 ///|
@@ -1561,12 +2451,20 @@ pub fn lookup_message_crc_extra(msgid : UInt32) -> Byte? {
   match msgid {
     0U => Some(Heartbeat::crc_extra())
     1U => Some(SysStatus::crc_extra())
+    2U => Some(SystemTime::crc_extra())
     4U => Some(Ping::crc_extra())
     20U => Some(ParamRequestRead::crc_extra())
     22U => Some(ParamValue::crc_extra())
+    23U => Some(ParamSet::crc_extra())
     24U => Some(GpsRawInt::crc_extra())
     30U => Some(Attitude::crc_extra())
+    32U => Some(LocalPositionNed::crc_extra())
     33U => Some(GlobalPositionInt::crc_extra())
+    35U => Some(RcChannelsRaw::crc_extra())
+    44U => Some(MissionCount::crc_extra())
+    47U => Some(MissionAck::crc_extra())
+    51U => Some(MissionRequestInt::crc_extra())
+    73U => Some(MissionItemInt::crc_extra())
     76U => Some(CommandLong::crc_extra())
     77U => Some(CommandAck::crc_extra())
     253U => Some(Statustext::crc_extra())
@@ -1580,12 +2478,20 @@ pub fn lookup_message_crc_extra(msgid : UInt32) -> Byte? {
 pub(all) enum MavMessage {
   MsgHeartbeat(Heartbeat)
   MsgSysStatus(SysStatus)
+  MsgSystemTime(SystemTime)
   MsgPing(Ping)
   MsgParamRequestRead(ParamRequestRead)
   MsgParamValue(ParamValue)
+  MsgParamSet(ParamSet)
   MsgGpsRawInt(GpsRawInt)
   MsgAttitude(Attitude)
+  MsgLocalPositionNed(LocalPositionNed)
   MsgGlobalPositionInt(GlobalPositionInt)
+  MsgRcChannelsRaw(RcChannelsRaw)
+  MsgMissionCount(MissionCount)
+  MsgMissionAck(MissionAck)
+  MsgMissionRequestInt(MissionRequestInt)
+  MsgMissionItemInt(MissionItemInt)
   MsgCommandLong(CommandLong)
   MsgCommandAck(CommandAck)
   MsgStatustext(Statustext)
@@ -1604,12 +2510,20 @@ pub fn MavMessage::msg_id(self : MavMessage) -> UInt32 {
   match self {
     MsgHeartbeat(_) => 0U
     MsgSysStatus(_) => 1U
+    MsgSystemTime(_) => 2U
     MsgPing(_) => 4U
     MsgParamRequestRead(_) => 20U
     MsgParamValue(_) => 22U
+    MsgParamSet(_) => 23U
     MsgGpsRawInt(_) => 24U
     MsgAttitude(_) => 30U
+    MsgLocalPositionNed(_) => 32U
     MsgGlobalPositionInt(_) => 33U
+    MsgRcChannelsRaw(_) => 35U
+    MsgMissionCount(_) => 44U
+    MsgMissionAck(_) => 47U
+    MsgMissionRequestInt(_) => 51U
+    MsgMissionItemInt(_) => 73U
     MsgCommandLong(_) => 76U
     MsgCommandAck(_) => 77U
     MsgStatustext(_) => 253U
@@ -1623,12 +2537,20 @@ pub fn MavMessage::crc_extra(self : MavMessage) -> Byte {
   match self {
     MsgHeartbeat(_) => Heartbeat::crc_extra()
     MsgSysStatus(_) => SysStatus::crc_extra()
+    MsgSystemTime(_) => SystemTime::crc_extra()
     MsgPing(_) => Ping::crc_extra()
     MsgParamRequestRead(_) => ParamRequestRead::crc_extra()
     MsgParamValue(_) => ParamValue::crc_extra()
+    MsgParamSet(_) => ParamSet::crc_extra()
     MsgGpsRawInt(_) => GpsRawInt::crc_extra()
     MsgAttitude(_) => Attitude::crc_extra()
+    MsgLocalPositionNed(_) => LocalPositionNed::crc_extra()
     MsgGlobalPositionInt(_) => GlobalPositionInt::crc_extra()
+    MsgRcChannelsRaw(_) => RcChannelsRaw::crc_extra()
+    MsgMissionCount(_) => MissionCount::crc_extra()
+    MsgMissionAck(_) => MissionAck::crc_extra()
+    MsgMissionRequestInt(_) => MissionRequestInt::crc_extra()
+    MsgMissionItemInt(_) => MissionItemInt::crc_extra()
     MsgCommandLong(_) => CommandLong::crc_extra()
     MsgCommandAck(_) => CommandAck::crc_extra()
     MsgStatustext(_) => Statustext::crc_extra()
@@ -1645,12 +2567,20 @@ pub fn MavMessage::encode_payload(
   match self {
     MsgHeartbeat(m) => m.encode_payload(v2~)
     MsgSysStatus(m) => m.encode_payload(v2~)
+    MsgSystemTime(m) => m.encode_payload(v2~)
     MsgPing(m) => m.encode_payload(v2~)
     MsgParamRequestRead(m) => m.encode_payload(v2~)
     MsgParamValue(m) => m.encode_payload(v2~)
+    MsgParamSet(m) => m.encode_payload(v2~)
     MsgGpsRawInt(m) => m.encode_payload(v2~)
     MsgAttitude(m) => m.encode_payload(v2~)
+    MsgLocalPositionNed(m) => m.encode_payload(v2~)
     MsgGlobalPositionInt(m) => m.encode_payload(v2~)
+    MsgRcChannelsRaw(m) => m.encode_payload(v2~)
+    MsgMissionCount(m) => m.encode_payload(v2~)
+    MsgMissionAck(m) => m.encode_payload(v2~)
+    MsgMissionRequestInt(m) => m.encode_payload(v2~)
+    MsgMissionItemInt(m) => m.encode_payload(v2~)
     MsgCommandLong(m) => m.encode_payload(v2~)
     MsgCommandAck(m) => m.encode_payload(v2~)
     MsgStatustext(m) => m.encode_payload(v2~)
@@ -1705,6 +2635,11 @@ pub fn MavMessage::decode_from_frame(
         Ok(m) => Ok(MsgSysStatus(m))
         Err(e) => Err(e)
       }
+    2U =>
+      match SystemTime::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgSystemTime(m))
+        Err(e) => Err(e)
+      }
     4U =>
       match Ping::decode_payload(frame.payload, v2=is_v2) {
         Ok(m) => Ok(MsgPing(m))
@@ -1720,6 +2655,11 @@ pub fn MavMessage::decode_from_frame(
         Ok(m) => Ok(MsgParamValue(m))
         Err(e) => Err(e)
       }
+    23U =>
+      match ParamSet::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgParamSet(m))
+        Err(e) => Err(e)
+      }
     24U =>
       match GpsRawInt::decode_payload(frame.payload, v2=is_v2) {
         Ok(m) => Ok(MsgGpsRawInt(m))
@@ -1730,9 +2670,39 @@ pub fn MavMessage::decode_from_frame(
         Ok(m) => Ok(MsgAttitude(m))
         Err(e) => Err(e)
       }
+    32U =>
+      match LocalPositionNed::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgLocalPositionNed(m))
+        Err(e) => Err(e)
+      }
     33U =>
       match GlobalPositionInt::decode_payload(frame.payload, v2=is_v2) {
         Ok(m) => Ok(MsgGlobalPositionInt(m))
+        Err(e) => Err(e)
+      }
+    35U =>
+      match RcChannelsRaw::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgRcChannelsRaw(m))
+        Err(e) => Err(e)
+      }
+    44U =>
+      match MissionCount::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMissionCount(m))
+        Err(e) => Err(e)
+      }
+    47U =>
+      match MissionAck::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMissionAck(m))
+        Err(e) => Err(e)
+      }
+    51U =>
+      match MissionRequestInt::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMissionRequestInt(m))
+        Err(e) => Err(e)
+      }
+    73U =>
+      match MissionItemInt::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMissionItemInt(m))
         Err(e) => Err(e)
       }
     76U =>

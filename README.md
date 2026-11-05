@@ -91,7 +91,6 @@ mavlink/
 │   ├── plan.md                         # 架构设计与协议数学规范（X.25 / 字段重排 / SHA-256）
 │   ├── decisions.md                    # 关键工程设计决策记录 (ADR-001 ~ ADR-004)
 │   └── ACCEPTANCE.md                   # 赛事初审与验收自检报告
-├── 申报书.md                           # 2026 MoonBit 开源生态编程大赛项目申报书
 ├── LICENSE                             # Apache-2.0 开源许可证
 └── NOTICE                              # 第三方知识来源与官方 MAVLink XML Schema 许可说明
 ```

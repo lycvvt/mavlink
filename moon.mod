@@ -8,7 +8,17 @@ repository = "https://github.com/lycvvt/mavlink"
 
 license = "Apache-2.0"
 
-keywords = ["mavlink", "mavlink-v2", "drone", "uav", "px4", "ardupilot", "codegen", "protocol", "embedded"]
+keywords = [
+  "mavlink",
+  "mavlink-v2",
+  "drone",
+  "uav",
+  "px4",
+  "ardupilot",
+  "codegen",
+  "protocol",
+  "embedded",
+]
 
 preferred_target = "wasm-gc"
 

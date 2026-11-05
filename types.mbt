@@ -8,19 +8,19 @@ pub const MAVLINK_STX_V2 : Byte = b'\xFD'
 
 ///|
 /// Maximum payload length in bytes for both MAVLink v1 and v2 frames.
-pub const MAX_PAYLOAD_LEN : Int = 255
+pub const MAX_PAYLOAD_LEN : Int32 = 255
 
 ///|
 /// MAVLink v1 header length in bytes (`len`, `seq`, `sysid`, `compid`, `msgid`).
-pub const V1_HEADER_LEN : Int = 5
+pub const V1_HEADER_LEN : Int32 = 5
 
 ///|
 /// MAVLink v2 header length in bytes (`len`, `incompat_flags`, `compat_flags`, `seq`, `sysid`, `compid`, `msgid[3]`).
-pub const V2_HEADER_LEN : Int = 9
+pub const V2_HEADER_LEN : Int32 = 9
 
 ///|
 /// MAVLink v2 packet signature length in bytes (`link_id[1] + timestamp[6] + signature[6]`).
-pub const V2_SIGNATURE_LEN : Int = 13
+pub const V2_SIGNATURE_LEN : Int32 = 13
 
 ///|
 /// MAVLink v2 incompatibility flag indicating the frame carries a 13-byte signature trailer.
@@ -44,16 +44,16 @@ pub extend ProtocolVersion with @debug.Debug::{to_repr}
 /// payload serialization, packet signing, and XML schema code generation.
 pub(all) enum MavError {
   InvalidMagic(Byte)
-  IncompleteFrame(Int, Int)
-  PayloadTooLarge(Int)
-  PayloadTooShort(Int, Int)
-  UnsupportedV1MessageId(UInt)
+  IncompleteFrame(Int32, Int32)
+  PayloadTooLarge(Int32)
+  PayloadTooShort(Int32, Int32)
+  UnsupportedV1MessageId(UInt32)
   UnsupportedIncompatFlags(Byte)
-  UnknownMessageId(UInt)
-  CrcMismatch(UInt, UInt)
+  UnknownMessageId(UInt32)
+  CrcMismatch(UInt32, UInt32)
   SignatureMissing
   SignatureInvalid(String)
-  InvalidEnumValue(String, UInt)
+  InvalidEnumValue(String, UInt32)
   XmlParseError(String)
   SchemaError(String)
 } derive(Eq, Debug)
@@ -73,7 +73,7 @@ pub(all) struct MavHeader {
   seq : Byte
   sysid : Byte
   compid : Byte
-  msgid : UInt
+  msgid : UInt32
 } derive(Eq, Debug)
 
 ///|
@@ -88,19 +88,11 @@ pub fn MavHeader::new_v2(
   seq~ : Byte,
   sysid~ : Byte,
   compid~ : Byte,
-  msgid~ : UInt,
+  msgid~ : UInt32,
   incompat_flags~ : Byte = b'\x00',
   compat_flags~ : Byte = b'\x00',
 ) -> MavHeader {
-  {
-    version: V2,
-    incompat_flags,
-    compat_flags,
-    seq,
-    sysid,
-    compid,
-    msgid,
-  }
+  { version: V2, incompat_flags, compat_flags, seq, sysid, compid, msgid, }
 }
 
 ///|
@@ -109,7 +101,7 @@ pub fn MavHeader::new_v1(
   seq~ : Byte,
   sysid~ : Byte,
   compid~ : Byte,
-  msgid~ : UInt,
+  msgid~ : UInt32,
 ) -> MavHeader {
   {
     version: V1,
@@ -144,7 +136,7 @@ pub extend MavSignature with @debug.Debug::{to_repr}
 pub(all) struct MavFrame {
   header : MavHeader
   payload : Bytes
-  checksum : UInt
+  checksum : UInt32
   signature : MavSignature?
 } derive(Eq, Debug)
 

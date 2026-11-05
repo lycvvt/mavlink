@@ -1,22 +1,23 @@
 ///|
 /// Initial seed value for MAVLink X.25 CRC-16-MCRF4XX calculation.
-pub const X25_INIT_CRC : UInt = 0xFFFFU
+pub const X25_INIT_CRC : UInt32 = 0xFFFFU
 
 ///|
 /// Stateful X.25 CRC-16-MCRF4XX accumulator used by MAVLink v1 and v2.
 pub(all) struct X25Crc {
-  mut value : UInt
+  mut value : UInt32
 } derive(Eq, Debug)
 
 ///|
 pub extend X25Crc with Eq::{not_equal, equal}
+
 ///|
 pub extend X25Crc with @debug.Debug::{to_repr}
 
 ///|
 /// Create a new X.25 CRC accumulator initialized to `0xFFFF`.
 pub fn X25Crc::new() -> X25Crc {
-  { value: X25_INIT_CRC }
+  { value: X25_INIT_CRC, }
 }
 
 ///|
@@ -40,8 +41,8 @@ pub fn X25Crc::accumulate_byte(self : X25Crc, b : Byte) -> Unit {
 pub fn X25Crc::accumulate_bytes(
   self : X25Crc,
   data : Bytes,
-  start~ : Int = 0,
-  len~ : Int = -1,
+  start~ : Int32 = 0,
+  len~ : Int32 = -1,
 ) -> Unit {
   let actual_len = if len < 0 { data.length() - start } else { len }
   for i = 0; i < actual_len; i = i + 1 {
@@ -77,7 +78,7 @@ pub fn X25Crc::to_crc_extra(self : X25Crc) -> Byte {
 
 ///|
 /// Compute the X.25 CRC-16 over a byte buffer.
-pub fn crc16_calculate(data : Bytes) -> UInt {
+pub fn crc16_calculate(data : Bytes) -> UInt32 {
   let crc = X25Crc::new()
   crc.accumulate_bytes(data)
   crc.value
@@ -85,7 +86,7 @@ pub fn crc16_calculate(data : Bytes) -> UInt {
 
 ///|
 /// Compute the MAVLink frame checksum over header/payload bytes plus the message `crc_extra` byte.
-pub fn crc16_calculate_with_extra(data : Bytes, crc_extra : Byte) -> UInt {
+pub fn crc16_calculate_with_extra(data : Bytes, crc_extra : Byte) -> UInt32 {
   let crc = X25Crc::new()
   crc.accumulate_bytes(data)
   crc.accumulate_byte(crc_extra)
@@ -113,12 +114,12 @@ pub fn CrcFieldSpec::new(
   name : String,
   is_extension~ : Bool = false,
 ) -> CrcFieldSpec {
-  { wire_type, name, is_extension }
+  { wire_type, name, is_extension, }
 }
 
 ///|
 /// Return the element byte width of a MAVLink primitive type name.
-pub fn primitive_type_size(base_type : String) -> Result[Int, MavError] {
+pub fn primitive_type_size(base_type : String) -> Result[Int32, MavError] {
   match base_type {
     "uint64_t" | "int64_t" | "double" => Ok(8)
     "uint32_t" | "int32_t" | "float" => Ok(4)
@@ -134,7 +135,7 @@ pub fn primitive_type_size(base_type : String) -> Result[Int, MavError] {
 /// For scalar fields, `array_len` is `0`.
 pub fn parse_wire_type_spec(
   wire_type : String,
-) -> Result[(String, Int, Int), MavError] {
+) -> Result[(String, Int32, Int32), MavError] {
   let mut bracket_pos = -1
   let mut close_pos = -1
   let chars = wire_type.to_array()
@@ -147,7 +148,9 @@ pub fn parse_wire_type_spec(
   }
   let (raw_base, arr_len) = if bracket_pos >= 0 {
     if close_pos <= bracket_pos + 1 {
-      return Err(SchemaError("Malformed array type specification: " + wire_type))
+      return Err(
+        SchemaError("Malformed array type specification: " + wire_type),
+      )
     }
     let base_buf = StringBuilder()
     for i = 0; i < bracket_pos; i = i + 1 {
@@ -198,7 +201,7 @@ pub fn compute_crc_extra(
   message_name : String,
   fields : Array[CrcFieldSpec],
 ) -> Result[Byte, MavError] {
-  let parsed : Array[(Int, Int, String, String, Int)] = []
+  let parsed : Array[(Int32, Int32, String, String, Int32)] = []
   for i = 0; i < fields.length(); i = i + 1 {
     let f = fields[i]
     if !f.is_extension {

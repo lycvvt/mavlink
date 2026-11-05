@@ -27,9 +27,7 @@ pub fn encode_frame(
       let body_bytes = body_writer.to_bytes()
       let checksum = crc16_calculate_with_extra(body_bytes, crc_extra)
 
-      let wire_writer = PayloadWriter::new(
-        capacity=1 + body_bytes.length() + 2,
-      )
+      let wire_writer = PayloadWriter::new(capacity=1 + body_bytes.length() + 2)
       wire_writer.write_uint8(MAVLINK_STX_V1)
       wire_writer.write_bytes(body_bytes)
       wire_writer.write_uint16(checksum)
@@ -123,10 +121,10 @@ pub fn encode_frame(
 /// Returns `(decoded_frame, bytes_consumed)` on success.
 pub fn decode_frame(
   wire : Bytes,
-  crc_extra_lookup : (UInt) -> Byte?,
-  start~ : Int = 0,
+  crc_extra_lookup : (UInt32) -> Byte?,
+  start~ : Int32 = 0,
   signing~ : SigningContext? = None,
-) -> Result[(MavFrame, Int), MavError] {
+) -> Result[(MavFrame, Int32), MavError] {
   let avail = wire.length() - start
   if avail <= 0 {
     return Err(IncompleteFrame(1, 0))
@@ -290,11 +288,11 @@ pub extend ParseStreamEvent with @debug.Debug::{to_repr}
 /// partial-packet buffering, and sequence-gap packet-drop tracking.
 pub(all) struct FrameParser {
   buffer : Array[Byte]
-  mut packets_received : UInt
-  mut packets_dropped : UInt
-  mut crc_errors : UInt
-  mut noise_bytes_skipped : UInt
-  mut last_seq : Int
+  mut packets_received : UInt32
+  mut packets_dropped : UInt32
+  mut crc_errors : UInt32
+  mut noise_bytes_skipped : UInt32
+  mut last_seq : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -317,7 +315,7 @@ pub fn FrameParser::new() -> FrameParser {
 }
 
 ///|
-fn FrameParser::discard_prefix(self : FrameParser, count : Int) -> Unit {
+fn FrameParser::discard_prefix(self : FrameParser, count : Int32) -> Unit {
   if count <= 0 {
     return
   }
@@ -340,7 +338,7 @@ fn FrameParser::discard_prefix(self : FrameParser, count : Int) -> Unit {
 pub fn FrameParser::push_bytes(
   self : FrameParser,
   chunk : Bytes,
-  crc_extra_lookup : (UInt) -> Byte?,
+  crc_extra_lookup : (UInt32) -> Byte?,
   signing~ : SigningContext? = None,
 ) -> Array[ParseStreamEvent] {
   for i = 0; i < chunk.length(); i = i + 1 {

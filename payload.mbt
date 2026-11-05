@@ -12,13 +12,13 @@ pub extend PayloadWriter with @debug.Debug::{to_repr}
 
 ///|
 /// Create a new payload writer with optional initial capacity.
-pub fn PayloadWriter::new(capacity~ : Int = 64) -> PayloadWriter {
-  { buf: Array(capacity~) }
+pub fn PayloadWriter::new(capacity~ : Int32 = 64) -> PayloadWriter {
+  { buf: Array(capacity~), }
 }
 
 ///|
 /// Current byte length written so far.
-pub fn PayloadWriter::length(self : PayloadWriter) -> Int {
+pub fn PayloadWriter::length(self : PayloadWriter) -> Int32 {
   self.buf.length()
 }
 
@@ -30,27 +30,27 @@ pub fn PayloadWriter::write_uint8(self : PayloadWriter, v : Byte) -> Unit {
 
 ///|
 /// Write a single signed 8-bit integer (`int8_t` represented as `Int`).
-pub fn PayloadWriter::write_int8(self : PayloadWriter, v : Int) -> Unit {
+pub fn PayloadWriter::write_int8(self : PayloadWriter, v : Int32) -> Unit {
   self.buf.push((v & 0xFF).to_byte())
 }
 
 ///|
 /// Write a 16-bit unsigned integer (`uint16_t`, little-endian).
-pub fn PayloadWriter::write_uint16(self : PayloadWriter, v : UInt) -> Unit {
+pub fn PayloadWriter::write_uint16(self : PayloadWriter, v : UInt32) -> Unit {
   self.buf.push((v & 0xFFU).to_byte())
   self.buf.push(((v >> 8) & 0xFFU).to_byte())
 }
 
 ///|
 /// Write a 16-bit signed integer (`int16_t` represented as `Int`, little-endian).
-pub fn PayloadWriter::write_int16(self : PayloadWriter, v : Int) -> Unit {
+pub fn PayloadWriter::write_int16(self : PayloadWriter, v : Int32) -> Unit {
   let u = v.reinterpret_as_uint()
   self.write_uint16(u)
 }
 
 ///|
 /// Write a 24-bit unsigned integer (`uint24_t`, used for MAVLink v2 message IDs, little-endian).
-pub fn PayloadWriter::write_uint24(self : PayloadWriter, v : UInt) -> Unit {
+pub fn PayloadWriter::write_uint24(self : PayloadWriter, v : UInt32) -> Unit {
   self.buf.push((v & 0xFFU).to_byte())
   self.buf.push(((v >> 8) & 0xFFU).to_byte())
   self.buf.push(((v >> 16) & 0xFFU).to_byte())
@@ -58,7 +58,7 @@ pub fn PayloadWriter::write_uint24(self : PayloadWriter, v : UInt) -> Unit {
 
 ///|
 /// Write a 32-bit unsigned integer (`uint32_t`, little-endian).
-pub fn PayloadWriter::write_uint32(self : PayloadWriter, v : UInt) -> Unit {
+pub fn PayloadWriter::write_uint32(self : PayloadWriter, v : UInt32) -> Unit {
   self.buf.push((v & 0xFFU).to_byte())
   self.buf.push(((v >> 8) & 0xFFU).to_byte())
   self.buf.push(((v >> 16) & 0xFFU).to_byte())
@@ -67,7 +67,7 @@ pub fn PayloadWriter::write_uint32(self : PayloadWriter, v : UInt) -> Unit {
 
 ///|
 /// Write a 32-bit signed integer (`int32_t`, little-endian).
-pub fn PayloadWriter::write_int32(self : PayloadWriter, v : Int) -> Unit {
+pub fn PayloadWriter::write_int32(self : PayloadWriter, v : Int32) -> Unit {
   self.write_uint32(v.reinterpret_as_uint())
 }
 
@@ -103,7 +103,7 @@ pub fn PayloadWriter::write_double(self : PayloadWriter, v : Double) -> Unit {
 pub fn PayloadWriter::write_char_array(
   self : PayloadWriter,
   s : String,
-  fixed_len : Int,
+  fixed_len : Int32,
 ) -> Unit {
   let chars = s.to_array()
   for i = 0; i < fixed_len; i = i + 1 {
@@ -180,7 +180,7 @@ pub fn truncate_trailing_zeros(payload : Bytes) -> Bytes {
 /// zero-extension for truncated trailing bytes and extension fields.
 pub(all) struct PayloadReader {
   data : Bytes
-  mut pos : Int
+  mut pos : Int32
   zero_extend : Bool
 } derive(Eq, Debug)
 
@@ -197,7 +197,7 @@ pub fn PayloadReader::new(
   data : Bytes,
   zero_extend~ : Bool = true,
 ) -> PayloadReader {
-  { data, pos: 0, zero_extend }
+  { data, pos: 0, zero_extend, }
 }
 
 ///|
@@ -225,7 +225,9 @@ pub fn PayloadReader::read_uint8(
 
 ///|
 /// Read a signed 8-bit integer (`int8_t`) sign-extended to `Int`.
-pub fn PayloadReader::read_int8(self : PayloadReader) -> Result[Int, MavError] {
+pub fn PayloadReader::read_int8(
+  self : PayloadReader,
+) -> Result[Int32, MavError] {
   match self.read_byte() {
     Ok(b) => {
       let u = b.to_int() & 0xFF
@@ -239,7 +241,7 @@ pub fn PayloadReader::read_int8(self : PayloadReader) -> Result[Int, MavError] {
 /// Read a 16-bit unsigned integer (`uint16_t`, little-endian).
 pub fn PayloadReader::read_uint16(
   self : PayloadReader,
-) -> Result[UInt, MavError] {
+) -> Result[UInt32, MavError] {
   let b0 = match self.read_byte() {
     Ok(v) => v.to_uint()
     Err(e) => return Err(e)
@@ -253,7 +255,9 @@ pub fn PayloadReader::read_uint16(
 
 ///|
 /// Read a 16-bit signed integer (`int16_t`, little-endian) sign-extended to `Int`.
-pub fn PayloadReader::read_int16(self : PayloadReader) -> Result[Int, MavError] {
+pub fn PayloadReader::read_int16(
+  self : PayloadReader,
+) -> Result[Int32, MavError] {
   match self.read_uint16() {
     Ok(u) => {
       let iv = u.reinterpret_as_int()
@@ -267,7 +271,7 @@ pub fn PayloadReader::read_int16(self : PayloadReader) -> Result[Int, MavError] 
 /// Read a 32-bit unsigned integer (`uint32_t`, little-endian).
 pub fn PayloadReader::read_uint32(
   self : PayloadReader,
-) -> Result[UInt, MavError] {
+) -> Result[UInt32, MavError] {
   let b0 = match self.read_byte() {
     Ok(v) => v.to_uint()
     Err(e) => return Err(e)
@@ -289,7 +293,9 @@ pub fn PayloadReader::read_uint32(
 
 ///|
 /// Read a 32-bit signed integer (`int32_t`, little-endian).
-pub fn PayloadReader::read_int32(self : PayloadReader) -> Result[Int, MavError] {
+pub fn PayloadReader::read_int32(
+  self : PayloadReader,
+) -> Result[Int32, MavError] {
   match self.read_uint32() {
     Ok(u) => Ok(u.reinterpret_as_int())
     Err(e) => Err(e)
@@ -349,7 +355,7 @@ pub fn PayloadReader::read_double(
 /// while advancing the cursor by the full `fixed_len` bytes.
 pub fn PayloadReader::read_char_array(
   self : PayloadReader,
-  fixed_len : Int,
+  fixed_len : Int32,
 ) -> Result[String, MavError] {
   let sb = StringBuilder()
   let mut nul_seen = false
@@ -359,7 +365,7 @@ pub fn PayloadReader::read_char_array(
         if b == b'\x00' {
           nul_seen = true
         } else if !nul_seen {
-          sb.write_char(Int::unsafe_to_char(b.to_int() & 0xFF))
+          sb.write_char(Int32::unsafe_to_char(b.to_int() & 0xFF))
         }
       Err(e) => return Err(e)
     }

@@ -2,7 +2,7 @@
 
 > **项目名称**：`mavlink` — 纯 MoonBit 实现的 MAVLink v2/v1 无人机通信协议栈、微服务状态机与官方 XML 自动代码生成器  
 > **GitHub 仓库**：[https://github.com/lycvvt/mavlink](https://github.com/lycvvt/mavlink)  
-> **Mooncakes 包名**：`lycvvt/mavlink` (`v0.3.0`)  
+> **Mooncakes 包名**：`lycvvt/mavlink` (`v0.4.0`)  
 > **参赛者账号**：[`lycvvt`](https://github.com/lycvvt)  
 > **工具链版本**：`moon 0.1.20261028 (e1e1f15 2026-10-28)` / `moonc v0.10.18+6c83a7f62`
 
@@ -13,12 +13,12 @@
 | 审查维度 | 官方章程要求 | 本项目实际完成指标 | 状态 |
 | :--- | :--- | :--- | :---: |
 | **选题查重** | 不与 Mooncakes.io 或已有开源项目重复 | 立项前 `moon search mavlink` / `px4` / `ardupilot` 均为 `No modules found.`（详见 [`docs/dedup.md`](dedup.md)） | PASS |
-| **主要实现语言** | MoonBit 为主要实现语言，构建真实可用功能 | 协议帧编解码、SHA-256 签名、7 大微服务与诊断组件、多文件 XML 解析与代码生成 100% 纯 MoonBit 实现（0 FFI） | PASS |
+| **主要实现语言** | MoonBit 为主要实现语言，构建真实可用功能 | 协议帧编解码、SHA-256 签名、微服务状态机、多链路路由器、`.tlog` 录制器、多文件 XML 解析与代码生成 100% 纯 MoonBit 实现（0 FFI） | PASS |
 | **编译与静态检查** | 必须在当前最新工具链下编译通过 | `moon check` 与 `moon build --target wasm-gc` 均为 **`0 warnings, 0 errors`** | PASS |
 | **标准方言覆盖规模** | 读取官方 XML 自动生成完备编解码器 | 自举生成 [`standard_dialect.mbt`](../standard_dialect.mbt)，覆盖 **22 个标准枚举与 60 条官方飞控消息**（100% 通过 C `c_library_v2` 黄金向量核验） | PASS |
-| **单元测试与边界验证** | 具备充分的正确性与错误处理测试 | 共 **90 项自动化测试**（76 项白盒 + 14 项黑盒），覆盖 60 条消息、数值极值、数组越界防护、多文件 `<include>` 循环检测、微服务超时重传、FTP (#110) 编解码、50 次签名对抗攻击与 1,024B 随机流 Fuzz | PASS |
+| **单元测试与边界验证** | 具备充分的正确性与错误处理测试 | 共 **100 项自动化测试**（83 项白盒 + 17 项黑盒），覆盖 60 条消息、数值极值、数组越界防护、多文件 `<include>` 循环检测、微服务超时重传、FTP 虚拟文件读写、多链路防环路由、`.tlog` 录制回放、50 次签名对抗攻击与 1,024B 随机流 Fuzz | PASS |
 | **真实基准数据与白皮书** | 提供可复现的性能/带宽基准与适用边界 | 提供 [`benchmark.mbt`](../benchmark.mbt)、`cmd/benchmark` 与 [`docs/BENCHMARK_AND_BOUNDARIES.md`](BENCHMARK_AND_BOUNDARIES.md) | PASS |
-| **可运行示例与 CLI** | 提供可直接运行的示例程序 | 提供 3 个 CLI（`cmd/main`、`cmd/codegen`、`cmd/benchmark`）及 4 个独立工程场景示例（`examples/`） | PASS |
+| **可运行示例与 CLI** | 提供可直接运行的示例程序 | 提供 3 个 CLI（`cmd/main`、`cmd/codegen`、`cmd/benchmark`）及 5 个独立工程场景示例（`examples/`） | PASS |
 | **开源发布与合规声明** | OSI 认可开源协议 + 发布至 `mooncakes.io` | `Apache-2.0` ([`LICENSE`](../LICENSE)) + [`NOTICE`](../NOTICE)，已通过 `lycvvt` 账号发布至 `mooncakes.io` | PASS |
 
 ---

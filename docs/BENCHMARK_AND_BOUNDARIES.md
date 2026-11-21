@@ -1,6 +1,6 @@
 # MAVLink v2 官方黄金向量对标、实测带宽基准与适用边界白皮书 (`docs/BENCHMARK_AND_BOUNDARIES.md`)
 
-> **适用版本**：`lycvvt/mavlink v0.3.0`  
+> **适用版本**：`lycvvt/mavlink v0.4.0`  
 > **复现命令**：`moon run cmd/benchmark` / `moon test`
 
 ---

@@ -6,7 +6,7 @@
 [![CI](https://github.com/lycvvt/mavlink/actions/workflows/ci.yml/badge.svg)](https://github.com/lycvvt/mavlink/actions)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Language](https://img.shields.io/badge/Language-MoonBit-purple.svg)](https://www.moonbitlang.com/)
-[![Tests](https://img.shields.io/badge/Tests-90%2F90%20passed-success.svg)](mavlink_wbtest.mbt)
+[![Tests](https://img.shields.io/badge/Tests-100%2F100%20passed-success.svg)](mavlink_wbtest.mbt)
 
 ---
 
@@ -66,8 +66,13 @@
   - **双向航点任务服务 (`MissionUploadClient` / `MissionDownloadClient` / `MissionServer`)**：支持航点列表上传、下载、清空（`MISSION_CLEAR_ALL`）、当前航点切换（`MISSION_SET_CURRENT`）、乱序航点拒绝（`MavMissionInvalidSequence`）与超时重传。
   - **控制指令状态机 (`CommandClient`)**：支持 `COMMAND_LONG` 超时重传时自动递增 `confirmation` 计数器（`0 → 1 → 2...`）、`MAV_RESULT_IN_PROGRESS` 进度百分比追踪与 `COMMAND_CANCEL` (#80) 取消指令。
   - **双向时钟同步与时延估计 (`TimesyncEstimator`)**：基于 `TIMESYNC` (#111) 计算往返时延（RTT）与机载时钟偏移，内置 EMA 指数滑动平均抖动滤波。
-  - **机载文件传输子协议编解码 (`FtpOpcode` / `FtpPacket`)**：在 `FILE_TRANSFER_PROTOCOL` (#110) 的 251 字节载荷中封装 12 字节小端序 FTP 帧头与最多 239 字节数据，支持 18 种标准 FTP 操作码（`OpenFileRO`、`ReadFile`、`WriteFile`、`ListDirectory`、`CalcFileCRC32`、`Ack`/`Nak` 等）。
+  - **机载文件传输子协议与虚拟文件服务 (`FtpOpcode` / `FtpPacket` / `FtpServer`)**：在 `FILE_TRANSFER_PROTOCOL` (#110) 的 251 字节载荷中封装 12 字节小端序 FTP 帧头与最多 239 字节数据，支持 18 种标准 FTP 操作码及内存态虚拟文件系统读写（`OpenFileRO`、`ReadFile`、`ListDirectory`、`TerminateSession`）。
+  - **扩展参数服务 (`ExtendedParameterClient` / `ExtendedParameterServer`)**：支持 128 字节 `PARAM_EXT_*` (#320..#324) 云台/相机/载荷参数列表同步与带类型校验的 `PARAM_EXT_SET` -> `PARAM_EXT_ACK` 事务。
   - **遥测流频率与带宽统计 (`TelemetryRateTracker`)**：按消息 ID 实时统计接收帧率（Hz）与链路总吞吐率（Bytes/s）。
+
+- **多链路路由桥接与 QGroundControl `.tlog` 遥测录制回放 (`router.mbt` / `tlog.mbt`)**
+  - **多链路路由器 (`MavRouter`)**：参考 `mavlink-router` 设计，自动从入站帧学习 `(sysid, compid) -> link_port` 路由表，精准识别单播与广播消息并执行水平分割防环转发（Split-Horizon Loop Prevention）。
+  - **QGroundControl `.tlog` 二进制录制与回放 (`TlogRecorder` / `decode_tlog_stream`)**：支持标准 64-bit 大端序微秒时间戳（`uint64_t BE`）+ 原始 MAVLink 帧的 `.tlog` 格式编码、流式解码、时间窗口切片（`filter_tlog_by_time_range`）与按消息 ID 过滤（`filter_tlog_by_msgid`）。
 
 - **多文件 `<include>` XML 解析与自举代码生成器 (`xml.mbt` / `codegen.mbt` / `standard_dialect.mbt`)**
   - 支持单文件 `parse_dialect_xml` 与多文件递归 `parse_dialect_xml_with_includes`（含菱形依赖去重与循环 `<include>` 检测）。
@@ -86,7 +91,7 @@ moon add lycvvt/mavlink
 ```
 
 ### 运行测试
-执行全量 90 项白盒、黑盒、黄金向量、微服务状态机与随机流 Fuzz 测试：
+执行全量 100 项白盒、黑盒、黄金向量、微服务状态机、多链路路由、`.tlog` 回放与随机流 Fuzz 测试：
 ```bash
 moon test
 ```
@@ -116,6 +121,9 @@ moon run examples/xml_codegen_custom
 
 # 示例 4: 五大 MAVLink v2 微服务（Heartbeat / Parameter / Command / Timesync）闭环联调仿真
 moon run examples/microservices_closed_loop
+
+# 示例 5: 多链路路由器 (MavRouter)、虚拟 FTP 文件服务 (#110) 与 QGroundControl .tlog 录制回放
+moon run examples/tlog_router_bridge
 ```
 
 ### 代码使用示例
@@ -210,7 +218,7 @@ let (merged_schema, moonbit_code) = @mavlink.generate_moonbit_from_xml_with_incl
 
 ## 协议验证与实测基准汇总
 
-本项目建立 90 项对齐官方 MAVLink v2 规范与 NIST 密码学标准的自动化测试套件（[`mavlink_wbtest.mbt`](mavlink_wbtest.mbt) 76 项白盒测试与 [`mavlink_test.mbt`](mavlink_test.mbt) 14 项黑盒测试）：
+本项目建立 100 项对齐官方 MAVLink v2 规范与 NIST 密码学标准的自动化测试套件（[`mavlink_wbtest.mbt`](mavlink_wbtest.mbt) 83 项白盒测试与 [`mavlink_test.mbt`](mavlink_test.mbt) 17 项黑盒测试）：
 
 | 编号 | 测试与基准模块 | 验证基准与技术点 | 实测验证结果 | 判定 |
 | :---: | :--- | :--- | :---: | :---: |
@@ -222,7 +230,7 @@ let (merged_schema, moonbit_code) = @mavlink.generate_moonbit_from_xml_with_incl
 | **6** | **SHA-256 签名与 50 次攻击审计** | 100 帧合法签名 + 50 帧对抗攻击（15 重放、15 回退、10 伪造密钥、10 标签篡改） | **100/100 放行，50/50 攻击拦截** | PASS |
 | **7** | **`FrameParser` 强噪声与极端分片** | 200 帧遥测注入 `32B/帧` 随机噪声（共 `6,400B` 噪声）并以 `1B` 单字节逐粒推入 | **200 / 200 帧恢复，14/14 丢包捕获** | PASS |
 | **8** | **1,024B 伪随机含假同步字 Fuzz** | 含伪造 `0xFD`/`0xFE` 的 1,024B 随机损坏字节流 + 签名帧恢复 | 零崩溃，100% 还原签名帧 | PASS |
-| **9** | **七大 MAVLink v2 微服务与诊断** | Heartbeat、Parameter、Mission、Command、Timesync、FTP (#110) 编解码与 RateTracker | 状态转移与超时重传 100% 准确 | PASS |
+| **9** | **高阶微服务、多链路路由与 `.tlog`** | Heartbeat、Param/ParamExt、Mission、Command、Timesync、FTP、MavRouter 与 `.tlog` 回放 | 状态转移与防环转发 100% 准确 | PASS |
 | **10** | **多文件 `<include>` XML 代码生成** | DAG 拓扑合并、菱形依赖去重、循环包含拦截、`255B/256B` 载荷上限边界 | 自举编译 `0 warnings` | PASS |
 
 ---
@@ -231,7 +239,7 @@ let (merged_schema, moonbit_code) = @mavlink.generate_moonbit_from_xml_with_incl
 
 ```text
 mavlink/
-├── moon.mod                            # MoonBit 模块配置清单 (lycvvt/mavlink v0.3.0)
+├── moon.mod                            # MoonBit 模块配置清单 (lycvvt/mavlink v0.4.0)
 ├── moon.pkg                            # 根包导入配置
 ├── LICENSE                             # Apache-2.0 许可证
 ├── NOTICE                              # 第三方知识来源与官方 MAVLink XML Schema 声明
@@ -246,10 +254,12 @@ mavlink/
 ├── codegen.mbt                         # 自举式 MoonBit 强类型编解码代码生成器
 ├── xml_catalog.mbt                     # 官方 minimal.xml + common.xml (22 枚举 / 60 消息) 定义
 ├── standard_dialect.mbt                # 由代码生成器自举产出的 22 个枚举与 60 条消息实现
-├── microservices.mbt                   # 七大 MAVLink v2 微服务与诊断组件 (Heartbeat/Param/Mission/Cmd/Timesync/FTP/Rate)
+├── microservices.mbt                   # 高阶微服务状态机 (Heartbeat/Param/ParamExt/Mission/Cmd/Timesync/FTP/Rate)
+├── router.mbt                          # 多链路 MAVLink 路由器 MavRouter (源地址学习 / 单播转发 / 防环广播)
+├── tlog.mbt                            # QGroundControl .tlog 64-bit 微秒时间戳遥测录制与回放引擎
 ├── benchmark.mbt                       # 60 条消息黄金向量核验、v1/v2 带宽基准与安全/抗噪压测引擎
-├── mavlink_wbtest.mbt                  # 76 项白盒单元、边界、微服务与 Fuzz 测试
-├── mavlink_test.mbt                    # 14 项黑盒集成测试
+├── mavlink_wbtest.mbt                  # 83 项白盒单元、边界、微服务、路由器、.tlog 与 Fuzz 测试
+├── mavlink_test.mbt                    # 17 项黑盒集成测试
 ├── cmd/
 │   ├── main/                           # 协议栈闭环验证与综合演示 CLI
 │   ├── codegen/                        # 官方 XML -> MoonBit 命令行代码生成器
@@ -258,7 +268,8 @@ mavlink/
 │   ├── px4_telemetry/                  # 示例 1: PX4 四旋翼签名遥测流与串口抗噪解析
 │   ├── gcs_mission_protocol/           # 示例 2: 地面站与飞控双向航点上传状态机
 │   ├── xml_codegen_custom/             # 示例 3: 自定义植保机 XML 方言实时代码生成
-│   └── microservices_closed_loop/      # 示例 4: 五大 MAVLink v2 微服务闭环联调仿真
+│   ├── microservices_closed_loop/      # 示例 4: 高阶 MAVLink v2 微服务闭环联调仿真
+│   └── tlog_router_bridge/             # 示例 5: 多链路路由器、FTP 虚拟文件服务与 QGC .tlog 回放
 ├── web/
 │   └── index.html                      # 纯前端 MAVLink v2 帧剖析与 XML 代码生成工作台
 └── docs/

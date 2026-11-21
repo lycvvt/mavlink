@@ -28,7 +28,7 @@ jobs:
           moon fmt --check
           moon check
 
-      - name: Run 90 Unit, Golden Vector, Microservice & Fuzz Tests
+      - name: Run 100 Unit, Golden Vector, Microservice, Router, Tlog & Fuzz Tests
         run: |
           moon test
 
@@ -45,3 +45,4 @@ jobs:
           moon run examples/gcs_mission_protocol
           moon run examples/xml_codegen_custom
           moon run examples/microservices_closed_loop
+          moon run examples/tlog_router_bridge

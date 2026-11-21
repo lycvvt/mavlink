@@ -493,6 +493,25 @@ pub fn FtpPacket::not_equal(Self, Self) -> Bool
 pub fn FtpPacket::to_mav_message(Self, target_network? : Byte, target_system? : Byte, target_component? : Byte) -> Result[MavMessage, MavError]
 pub fn FtpPacket::to_repr(Self) -> @debug.Repr
 
+pub(all) struct FtpServer {
+  active_session : Byte
+  mut open_file_idx : Int32
+  files : Array[FtpVirtualFile]
+} derive(Eq, @debug.Debug)
+pub fn FtpServer::equal(Self, Self) -> Bool
+pub fn FtpServer::handle_packet(Self, FtpPacket) -> FtpPacket
+pub fn FtpServer::new(Array[(String, Bytes)], session_id? : Byte) -> Self
+pub fn FtpServer::not_equal(Self, Self) -> Bool
+pub fn FtpServer::to_repr(Self) -> @debug.Repr
+
+pub(all) struct FtpVirtualFile {
+  path : String
+  content : Bytes
+} derive(Eq, @debug.Debug)
+pub fn FtpVirtualFile::equal(Self, Self) -> Bool
+pub fn FtpVirtualFile::not_equal(Self, Self) -> Bool
+pub fn FtpVirtualFile::to_repr(Self) -> @debug.Repr
+
 pub(all) struct GlobalPositionInt {
   time_boot_ms : UInt32
   lat : Int32

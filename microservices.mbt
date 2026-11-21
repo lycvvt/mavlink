@@ -1847,3 +1847,185 @@ pub fn ExtendedParameterClient::on_message(
     _ => ()
   }
 }
+
+///|
+/// Virtual file entry stored inside `FtpServer`.
+pub(all) struct FtpVirtualFile {
+  path : String
+  content : Bytes
+} derive(Eq, Debug)
+
+///|
+pub extend FtpVirtualFile with Eq::{not_equal, equal}
+
+///|
+pub extend FtpVirtualFile with @debug.Debug::{to_repr}
+
+///|
+/// Vehicle-side MAVLink FTP (`FILE_TRANSFER_PROTOCOL` #110) virtual filesystem server
+/// supporting `OpenFileRO`, `ReadFile`, `ListDirectory`, `TerminateSession`, and `ResetSessions`.
+pub(all) struct FtpServer {
+  active_session : Byte
+  mut open_file_idx : Int32
+  files : Array[FtpVirtualFile]
+} derive(Eq, Debug)
+
+///|
+pub extend FtpServer with Eq::{not_equal, equal}
+
+///|
+pub extend FtpServer with @debug.Debug::{to_repr}
+
+///|
+/// Create a new `FtpServer` populated with virtual files.
+pub fn FtpServer::new(
+  files : Array[(String, Bytes)],
+  session_id~ : Byte = b'\x01',
+) -> FtpServer {
+  let vf : Array[FtpVirtualFile] = []
+  for pair in files {
+    vf.push({ path: pair.0, content: pair.1, })
+  }
+  { active_session: session_id, open_file_idx: -1, files: vf, }
+}
+
+///|
+fn bytes_to_ascii_path(data : Bytes) -> String {
+  let sb = StringBuilder()
+  for i = 0; i < data.length(); i = i + 1 {
+    if data[i] == b'\x00' {
+      break
+    }
+    sb.write_char(Int32::unsafe_to_char(data[i].to_int() & 0xFF))
+  }
+  sb.to_string()
+}
+
+///|
+/// Process an incoming `FtpPacket` request and return the corresponding `Ack` or `Nak` `FtpPacket`.
+pub fn FtpServer::handle_packet(self : FtpServer, req : FtpPacket) -> FtpPacket {
+  let next_seq = (req.seq_number + 1U) & 0xFFFFU
+  match req.opcode {
+    OpenFileRO => {
+      let path = bytes_to_ascii_path(req.data)
+      for i = 0; i < self.files.length(); i = i + 1 {
+        if self.files[i].path == path {
+          self.open_file_idx = i
+          let flen = self.files[i].content.length().reinterpret_as_uint()
+          let size_bytes : Array[Byte] = [
+            (flen & 0xFFU).to_byte(),
+            ((flen >> 8) & 0xFFU).to_byte(),
+            ((flen >> 16) & 0xFFU).to_byte(),
+            ((flen >> 24) & 0xFFU).to_byte(),
+          ]
+          return {
+            seq_number: next_seq,
+            session: self.active_session,
+            opcode: Ack,
+            req_opcode: OpenFileRO,
+            burst_complete: false,
+            offset: 0U,
+            data: Bytes::from_array(size_bytes),
+          }
+        }
+      }
+      {
+        seq_number: next_seq,
+        session: b'\x00',
+        opcode: Nak,
+        req_opcode: OpenFileRO,
+        burst_complete: false,
+        offset: 0U,
+        data: b"\x0A", // FileNotFound (10)
+      }
+    }
+    ReadFile => {
+      if req.session != self.active_session ||
+        self.open_file_idx < 0 ||
+        self.open_file_idx >= self.files.length() {
+        return {
+          seq_number: next_seq,
+          session: req.session,
+          opcode: Nak,
+          req_opcode: ReadFile,
+          burst_complete: false,
+          offset: req.offset,
+          data: b"\x03", // InvalidSession (3)
+        }
+      }
+      let content = self.files[self.open_file_idx].content
+      let start = req.offset.reinterpret_as_int()
+      if start < 0 || start >= content.length() {
+        return {
+          seq_number: next_seq,
+          session: self.active_session,
+          opcode: Nak,
+          req_opcode: ReadFile,
+          burst_complete: false,
+          offset: req.offset,
+          data: b"\x06", // EOF (6)
+        }
+      }
+      let max_chunk = 64
+      let end = if start + max_chunk < content.length() {
+        start + max_chunk
+      } else {
+        content.length()
+      }
+      let chunk : Array[Byte] = Array(capacity=end - start)
+      for i = start; i < end; i = i + 1 {
+        chunk.push(content[i])
+      }
+      {
+        seq_number: next_seq,
+        session: self.active_session,
+        opcode: Ack,
+        req_opcode: ReadFile,
+        burst_complete: end >= content.length(),
+        offset: req.offset,
+        data: Bytes::from_array(chunk),
+      }
+    }
+    ListDirectory => {
+      let out : Array[Byte] = []
+      for f in self.files {
+        let entry_str = "F" + f.path
+        for ch in entry_str {
+          out.push((ch.to_int() & 0xFF).to_byte())
+        }
+        out.push(b'\x00')
+      }
+      {
+        seq_number: next_seq,
+        session: b'\x00',
+        opcode: Ack,
+        req_opcode: ListDirectory,
+        burst_complete: true,
+        offset: req.offset,
+        data: Bytes::from_array(out),
+      }
+    }
+    TerminateSession | ResetSessions => {
+      self.open_file_idx = -1
+      {
+        seq_number: next_seq,
+        session: b'\x00',
+        opcode: Ack,
+        req_opcode: req.opcode,
+        burst_complete: false,
+        offset: 0U,
+        data: b"",
+      }
+    }
+    _ =>
+      {
+        seq_number: next_seq,
+        session: req.session,
+        opcode: Nak,
+        req_opcode: req.opcode,
+        burst_complete: false,
+        offset: req.offset,
+        data: b"\x05", // UnknownCommand
+      }
+  }
+}

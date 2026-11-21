@@ -786,15 +786,15 @@ test "stream parser: sequence gap packet drop counting and CRC error recovery" {
 }
 
 ///|
-test "golden audit: all 45 official messages match C c_library_v2 CRC_EXTRA and payload lengths" {
-  let golden = official_45_golden_table()
-  assert_eq(golden.length(), 45)
+test "golden audit: all 60 official messages match C c_library_v2 CRC_EXTRA and payload lengths" {
+  let golden = official_60_golden_table()
+  assert_eq(golden.length(), 60)
   let schema = match parse_dialect_xml(official_standard_xml) {
     Ok(s) => s
     Err(e) => fail(e.to_repr().to_string())
   }
-  assert_eq(schema.messages.length(), 45)
-  assert_eq(schema.enums.length(), 18)
+  assert_eq(schema.messages.length(), 60)
+  assert_eq(schema.enums.length(), 22)
 
   for i = 0; i < golden.length(); i = i + 1 {
     let g = golden[i]
@@ -2230,4 +2230,462 @@ test "boundary: HeartbeatMonitor multi-vehicle fleet isolation (sysid=1, sysid=2
   assert_eq(mon.is_node_alive(b'\x01', b'\x01', 1200UL), false)
   assert_eq(mon.is_node_alive(b'\x02', b'\x01', 1200UL), true)
   assert_eq(mon.is_node_alive(b'\x99', b'\x01', 1200UL), false)
+}
+
+///|
+test "dialect roundtrip: MissionWritePartialList (#38), MissionItem (#39), AttitudeTarget (#83)" {
+  let mwpl : MissionWritePartialList = {
+    start_index: 1,
+    end_index: 4,
+    target_system: b'\x01',
+    target_component: b'\x01',
+    mission_type: b'\x00',
+  }
+  assert_eq(
+    MissionWritePartialList::decode_payload(
+      mwpl.encode_payload(v2=true),
+      v2=true,
+    ),
+    Ok(mwpl),
+  )
+
+  let mi : MissionItem = {
+    param1: (0.0 : Float),
+    param2: (2.0 : Float),
+    param3: (0.0 : Float),
+    param4: (0.0 : Float),
+    x: (22.543096 : Float),
+    y: (114.057865 : Float),
+    z: (50.0 : Float),
+    seq: 3U,
+    command: 16U,
+    target_system: b'\x01',
+    target_component: b'\x01',
+    frame: b'\x03',
+    current: b'\x00',
+    autocontinue: b'\x01',
+    mission_type: b'\x00',
+  }
+  assert_eq(
+    MissionItem::decode_payload(mi.encode_payload(v2=true), v2=true),
+    Ok(mi),
+  )
+
+  let at : AttitudeTarget = {
+    time_boot_ms: 120000U,
+    q: [(1.0 : Float), (0.0 : Float), (0.0 : Float), (0.0 : Float)],
+    body_roll_rate: (0.0 : Float),
+    body_pitch_rate: (0.0 : Float),
+    body_yaw_rate: (0.15 : Float),
+    thrust: (0.58 : Float),
+    type_mask: b'\x00',
+  }
+  assert_eq(
+    AttitudeTarget::decode_payload(at.encode_payload(v2=true), v2=true),
+    Ok(at),
+  )
+}
+
+///|
+test "dialect roundtrip: SetPositionTargetLocalNed (#84) and PositionTargetLocalNed (#85)" {
+  let spt : SetPositionTargetLocalNed = {
+    time_boot_ms: 125000U,
+    x: (15.0 : Float),
+    y: (-8.5 : Float),
+    z: (-20.0 : Float),
+    vx: (2.0 : Float),
+    vy: (0.0 : Float),
+    vz: (-0.5 : Float),
+    afx: (0.0 : Float),
+    afy: (0.0 : Float),
+    afz: (0.0 : Float),
+    yaw: (1.57 : Float),
+    yaw_rate: (0.0 : Float),
+    type_mask: 0x0DF8U,
+    target_system: b'\x01',
+    target_component: b'\x01',
+    coordinate_frame: b'\x01',
+  }
+  assert_eq(
+    SetPositionTargetLocalNed::decode_payload(
+      spt.encode_payload(v2=true),
+      v2=true,
+    ),
+    Ok(spt),
+  )
+
+  let pt : PositionTargetLocalNed = {
+    time_boot_ms: 125020U,
+    x: (14.8 : Float),
+    y: (-8.4 : Float),
+    z: (-19.9 : Float),
+    vx: (1.95 : Float),
+    vy: (0.0 : Float),
+    vz: (-0.48 : Float),
+    afx: (0.0 : Float),
+    afy: (0.0 : Float),
+    afz: (0.0 : Float),
+    yaw: (1.57 : Float),
+    yaw_rate: (0.0 : Float),
+    type_mask: 0x0DF8U,
+    coordinate_frame: b'\x01',
+  }
+  assert_eq(
+    PositionTargetLocalNed::decode_payload(pt.encode_payload(v2=true), v2=true),
+    Ok(pt),
+  )
+}
+
+///|
+test "dialect roundtrip: OpticalFlow (#100), HighresImu (#105), and HomePosition (#242)" {
+  let oflow : OpticalFlow = {
+    time_usec: 1730800900000UL,
+    flow_comp_m_x: (0.35 : Float),
+    flow_comp_m_y: (-0.12 : Float),
+    ground_distance: (4.5 : Float),
+    flow_x: 18,
+    flow_y: -6,
+    sensor_id: b'\x01',
+    quality: b'\xf0',
+    flow_rate_x: (0.02 : Float),
+    flow_rate_y: (-0.01 : Float),
+  }
+  assert_eq(
+    OpticalFlow::decode_payload(oflow.encode_payload(v2=true), v2=true),
+    Ok(oflow),
+  )
+
+  let himu : HighresImu = {
+    time_usec: 1730800950000UL,
+    xacc: (0.02 : Float),
+    yacc: (-0.01 : Float),
+    zacc: (-9.80665 : Float),
+    xgyro: (0.001 : Float),
+    ygyro: (-0.002 : Float),
+    zgyro: (0.0 : Float),
+    xmag: (0.24 : Float),
+    ymag: (-0.05 : Float),
+    zmag: (0.41 : Float),
+    abs_pressure: (1013.25 : Float),
+    diff_pressure: (0.0 : Float),
+    pressure_alt: (12.4 : Float),
+    temperature: (36.5 : Float),
+    fields_updated: 0x1FFFU,
+    id: b'\x00',
+  }
+  assert_eq(
+    HighresImu::decode_payload(himu.encode_payload(v2=true), v2=true),
+    Ok(himu),
+  )
+
+  let home : HomePosition = {
+    latitude: 225430960,
+    longitude: 1140578650,
+    altitude: 15000,
+    x: (0.0 : Float),
+    y: (0.0 : Float),
+    z: (0.0 : Float),
+    q: [(1.0 : Float), (0.0 : Float), (0.0 : Float), (0.0 : Float)],
+    approach_x: (0.0 : Float),
+    approach_y: (0.0 : Float),
+    approach_z: (-10.0 : Float),
+    time_usec: 1730800000000000UL,
+  }
+  assert_eq(
+    HomePosition::decode_payload(home.encode_payload(v2=true), v2=true),
+    Ok(home),
+  )
+}
+
+///|
+test "dialect roundtrip: FileTransferProtocol (#110) and 255-byte max-payload LoggingData (#266)" {
+  let ftp_buf = FixedArray::make(251, b'\x00')
+  ftp_buf[0] = b'\x10'
+  ftp_buf[3] = b'\x04'
+  ftp_buf[250] = b'\x7F'
+  let ftp_msg : FileTransferProtocol = {
+    target_network: b'\x00',
+    target_system: b'\x01',
+    target_component: b'\x01',
+    payload: ftp_buf,
+  }
+  assert_eq(
+    FileTransferProtocol::decode_payload(
+      ftp_msg.encode_payload(v2=true),
+      v2=true,
+    ),
+    Ok(ftp_msg),
+  )
+
+  let log_buf = FixedArray::make(249, b'\x42')
+  let log_msg : LoggingData = {
+    sequence: 1024U,
+    target_system: b'\xff',
+    target_component: b'\xbe',
+    length: b'\xf9',
+    first_message_offset: b'\x00',
+    data: log_buf,
+  }
+  let (log_wire, log_frame) = match
+    MsgLoggingData(log_msg).encode_to_frame(
+      seq=b'\x07',
+      sysid=b'\x01',
+      compid=b'\x01',
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  // 255B max payload + 10B v2 header + 2B CRC = 267B wire frame
+  assert_eq(log_frame.payload.length(), 255)
+  assert_eq(log_wire.length(), 267)
+  let (rx_frame, _) = match decode_frame(log_wire, lookup_message_crc_extra) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(
+    MavMessage::decode_from_frame(rx_frame),
+    Ok(MsgLoggingData(log_msg)),
+  )
+}
+
+///|
+test "dialect roundtrip: Extended Parameter Protocol family (#320, #321, #322, #323, #324)" {
+  let perr : ParamExtRequestRead = {
+    param_index: -1,
+    target_system: b'\x01',
+    target_component: b'\x64',
+    param_id: "CAM_EV_COMP",
+  }
+  assert_eq(
+    ParamExtRequestRead::decode_payload(perr.encode_payload(v2=true), v2=true),
+    Ok(perr),
+  )
+
+  let perl : ParamExtRequestList = {
+    target_system: b'\x01',
+    target_component: b'\x64',
+  }
+  assert_eq(
+    ParamExtRequestList::decode_payload(perl.encode_payload(v2=true), v2=true),
+    Ok(perl),
+  )
+
+  let pev : ParamExtValue = {
+    param_count: 48U,
+    param_index: 12U,
+    param_id: "CAM_MODEL_NAME",
+    param_value: "PX4_OPTICAL_GIMBAL_V2",
+    param_type: MavParamExtType::Custom.to_uint().to_byte(),
+  }
+  assert_eq(
+    ParamExtValue::decode_payload(pev.encode_payload(v2=true), v2=true),
+    Ok(pev),
+  )
+
+  let pes : ParamExtSet = {
+    target_system: b'\x01',
+    target_component: b'\x64',
+    param_id: "CAM_MODEL_NAME",
+    param_value: "PX4_OPTICAL_GIMBAL_V3",
+    param_type: MavParamExtType::Custom.to_uint().to_byte(),
+  }
+  assert_eq(
+    ParamExtSet::decode_payload(pes.encode_payload(v2=true), v2=true),
+    Ok(pes),
+  )
+
+  let pea : ParamExtAck = {
+    param_id: "CAM_MODEL_NAME",
+    param_value: "PX4_OPTICAL_GIMBAL_V3",
+    param_type: MavParamExtType::Custom.to_uint().to_byte(),
+    param_result: ParamAck::Accepted.to_uint().to_byte(),
+  }
+  assert_eq(
+    ParamExtAck::decode_payload(pea.encode_payload(v2=true), v2=true),
+    Ok(pea),
+  )
+}
+
+///|
+test "microservice: FtpOpcode all 18 opcodes roundtrip via to_byte and from_byte" {
+  let ops : Array[FtpOpcode] = [
+    FtpNone,
+    TerminateSession,
+    ResetSessions,
+    ListDirectory,
+    OpenFileRO,
+    ReadFile,
+    CreateFile,
+    WriteFile,
+    RemoveFile,
+    CreateDirectory,
+    RemoveDirectory,
+    OpenFileWO,
+    TruncateFile,
+    Rename,
+    CalcFileCRC32,
+    BurstReadFile,
+    Ack,
+    Nak,
+  ]
+  for op in ops {
+    assert_eq(FtpOpcode::from_byte(op.to_byte()), Some(op))
+  }
+  assert_eq(FtpOpcode::from_byte(b'\x7F'), None)
+}
+
+///|
+test "microservice: FtpPacket encode and decode over FILE_TRANSFER_PROTOCOL (#110) wire frame" {
+  let req_pkt : FtpPacket = {
+    seq_number: 42U,
+    session: b'\x01',
+    opcode: OpenFileRO,
+    req_opcode: FtpNone,
+    burst_complete: false,
+    offset: 0U,
+    data: b"/fs/microsd/log/2026_11_21.ulg",
+  }
+  let mav_msg = match
+    req_pkt.to_mav_message(target_system=b'\x01', target_component=b'\x01') {
+    Ok(m) => m
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let (wire, _) = match
+    mav_msg.encode_to_frame(seq=b'\x09', sysid=b'\xff', compid=b'\xbe') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let (rx_frame, _) = match decode_frame(wire, lookup_message_crc_extra) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let decoded_ftp = match MavMessage::decode_from_frame(rx_frame) {
+    Ok(MsgFileTransferProtocol(f)) => f
+    _ => fail("Expected MsgFileTransferProtocol")
+  }
+  assert_eq(FtpPacket::from_file_transfer_protocol(decoded_ftp), Ok(req_pkt))
+}
+
+///|
+test "boundary: FtpPacket rejects data payload > 239 bytes and unknown FTP opcode" {
+  let over_data = Bytes::from_array(
+    FixedArray::make(240, b'\x41').unsafe_reinterpret_as_bytes().to_array(),
+  )
+  let bad_pkt : FtpPacket = {
+    seq_number: 1U,
+    session: b'\x00',
+    opcode: WriteFile,
+    req_opcode: FtpNone,
+    burst_complete: false,
+    offset: 0U,
+    data: over_data,
+  }
+  assert_true(bad_pkt.to_mav_message() is Err(PayloadTooLarge(240)))
+
+  let bad_raw_buf = FixedArray::make(251, b'\x00')
+  bad_raw_buf[3] = b'\x7E' // invalid opcode
+  let bad_ftp : FileTransferProtocol = {
+    target_network: b'\x00',
+    target_system: b'\x01',
+    target_component: b'\x01',
+    payload: bad_raw_buf,
+  }
+  assert_true(
+    FtpPacket::from_file_transfer_protocol(bad_ftp) is Err(SchemaError(_)),
+  )
+}
+
+///|
+test "microservice: TelemetryRateTracker computes per-message Hz frequency and link bandwidth" {
+  let tracker = TelemetryRateTracker::new()
+  let hb = MsgHeartbeat({
+    custom_mode: 0U,
+    mav_type: b'\x02',
+    autopilot: b'\x0c',
+    base_mode: b'\xd1',
+    system_status: b'\x04',
+    mavlink_version: b'\x03',
+  })
+  let att = MsgAttitude({
+    time_boot_ms: 1000U,
+    roll: (0.1 : Float),
+    pitch: (0.0 : Float),
+    yaw: (1.0 : Float),
+    rollspeed: (0.0 : Float),
+    pitchspeed: (0.0 : Float),
+    yawspeed: (0.0 : Float),
+  })
+  // Record 5 HEARTBEAT frames and 50 ATTITUDE frames over a 5000ms (5s) window
+  for i = 0; i < 5; i = i + 1 {
+    match hb.encode_to_frame(seq=i.to_byte(), sysid=b'\x01', compid=b'\x01') {
+      Ok((w, f)) => tracker.record_frame(f, w.length())
+      Err(e) => fail(e.to_repr().to_string())
+    }
+  }
+  for i = 0; i < 50; i = i + 1 {
+    match att.encode_to_frame(seq=i.to_byte(), sysid=b'\x01', compid=b'\x01') {
+      Ok((w, f)) => tracker.record_frame(f, w.length())
+      Err(e) => fail(e.to_repr().to_string())
+    }
+  }
+  assert_eq(tracker.total_frames, 55)
+  assert_eq(tracker.message_rate_hz(0U, 5000UL), 1.0)
+  assert_eq(tracker.message_rate_hz(30U, 5000UL), 10.0)
+  assert_eq(tracker.message_rate_hz(999U, 5000UL), 0.0)
+  assert_eq(tracker.message_rate_hz(0U, 0UL), 0.0)
+  assert_eq(tracker.total_bandwidth_bytes_per_sec(0UL), 0.0)
+  assert_true(tracker.total_bandwidth_bytes_per_sec(5000UL) > 250.0)
+}
+
+///|
+test "boundary: 24-bit message IDs (#266 LOGGING_DATA, #322 PARAM_EXT_VALUE) fail in MAVLink v1 and succeed in v2" {
+  let pev : ParamExtValue = {
+    param_count: 10U,
+    param_index: 0U,
+    param_id: "TEST_EXT",
+    param_value: "VAL_123",
+    param_type: b'\x01',
+  }
+  assert_true(
+    MsgParamExtValue(pev).encode_to_frame(
+      seq=b'\x01',
+      sysid=b'\x01',
+      compid=b'\x01',
+      version=V1,
+    )
+    is Err(UnsupportedV1MessageId(322U)),
+  )
+  assert_true(
+    MsgParamExtValue(pev).encode_to_frame(
+      seq=b'\x01',
+      sysid=b'\x01',
+      compid=b'\x01',
+      version=V2,
+    )
+    is Ok(_),
+  )
+}
+
+///|
+test "boundary: new bitmask and extended parameter enums roundtrip via to_uint and from_uint" {
+  assert_eq(
+    MavParamExtType::from_uint(MavParamExtType::Custom.to_uint()),
+    Some(MavParamExtType::Custom),
+  )
+  assert_eq(
+    ParamAck::from_uint(ParamAck::InProgress.to_uint()),
+    Some(ParamAck::InProgress),
+  )
+  assert_eq(
+    PositionTargetTypemask::from_uint(
+      PositionTargetTypemask::ForceSet.to_uint(),
+    ),
+    Some(PositionTargetTypemask::ForceSet),
+  )
+  assert_eq(
+    AttitudeTargetTypemask::from_uint(
+      AttitudeTargetTypemask::AttitudeIgnore.to_uint(),
+    ),
+    Some(AttitudeTargetTypemask::AttitudeIgnore),
+  )
 }

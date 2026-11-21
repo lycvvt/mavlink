@@ -436,6 +436,50 @@ pub let official_standard_xml : String =
   #|      <entry value="3" name="MAV_VTOL_STATE_MC"/>
   #|      <entry value="4" name="MAV_VTOL_STATE_FW"/>
   #|    </enum>
+  #|    <enum name="MAV_PARAM_EXT_TYPE">
+  #|      <description>Specifies the datatype of a MAVLink extended parameter.</description>
+  #|      <entry value="1" name="MAV_PARAM_EXT_TYPE_UINT8"/>
+  #|      <entry value="2" name="MAV_PARAM_EXT_TYPE_INT8"/>
+  #|      <entry value="3" name="MAV_PARAM_EXT_TYPE_UINT16"/>
+  #|      <entry value="4" name="MAV_PARAM_EXT_TYPE_INT16"/>
+  #|      <entry value="5" name="MAV_PARAM_EXT_TYPE_UINT32"/>
+  #|      <entry value="6" name="MAV_PARAM_EXT_TYPE_INT32"/>
+  #|      <entry value="7" name="MAV_PARAM_EXT_TYPE_UINT64"/>
+  #|      <entry value="8" name="MAV_PARAM_EXT_TYPE_INT64"/>
+  #|      <entry value="9" name="MAV_PARAM_EXT_TYPE_REAL32"/>
+  #|      <entry value="10" name="MAV_PARAM_EXT_TYPE_REAL64"/>
+  #|      <entry value="11" name="MAV_PARAM_EXT_TYPE_CUSTOM"/>
+  #|    </enum>
+  #|    <enum name="PARAM_ACK">
+  #|      <description>Result from a MAVLink extended parameter transaction.</description>
+  #|      <entry value="0" name="PARAM_ACK_ACCEPTED"/>
+  #|      <entry value="1" name="PARAM_ACK_VALUE_UNSUPPORTED"/>
+  #|      <entry value="2" name="PARAM_ACK_FAILED"/>
+  #|      <entry value="3" name="PARAM_ACK_IN_PROGRESS"/>
+  #|    </enum>
+  #|    <enum name="POSITION_TARGET_TYPEMASK" bitmask="true">
+  #|      <description>Bitmap to indicate which dimensions should be ignored by the vehicle.</description>
+  #|      <entry value="1" name="POSITION_TARGET_TYPEMASK_X_IGNORE"/>
+  #|      <entry value="2" name="POSITION_TARGET_TYPEMASK_Y_IGNORE"/>
+  #|      <entry value="4" name="POSITION_TARGET_TYPEMASK_Z_IGNORE"/>
+  #|      <entry value="8" name="POSITION_TARGET_TYPEMASK_VX_IGNORE"/>
+  #|      <entry value="16" name="POSITION_TARGET_TYPEMASK_VY_IGNORE"/>
+  #|      <entry value="32" name="POSITION_TARGET_TYPEMASK_VZ_IGNORE"/>
+  #|      <entry value="64" name="POSITION_TARGET_TYPEMASK_AX_IGNORE"/>
+  #|      <entry value="128" name="POSITION_TARGET_TYPEMASK_AY_IGNORE"/>
+  #|      <entry value="256" name="POSITION_TARGET_TYPEMASK_AZ_IGNORE"/>
+  #|      <entry value="512" name="POSITION_TARGET_TYPEMASK_FORCE_SET"/>
+  #|      <entry value="1024" name="POSITION_TARGET_TYPEMASK_YAW_IGNORE"/>
+  #|      <entry value="2048" name="POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE"/>
+  #|    </enum>
+  #|    <enum name="ATTITUDE_TARGET_TYPEMASK" bitmask="true">
+  #|      <description>Bitmap to indicate which dimensions should be ignored by the vehicle.</description>
+  #|      <entry value="1" name="ATTITUDE_TARGET_TYPEMASK_BODY_ROLL_RATE_IGNORE"/>
+  #|      <entry value="2" name="ATTITUDE_TARGET_TYPEMASK_BODY_PITCH_RATE_IGNORE"/>
+  #|      <entry value="4" name="ATTITUDE_TARGET_TYPEMASK_BODY_YAW_RATE_IGNORE"/>
+  #|      <entry value="64" name="ATTITUDE_TARGET_TYPEMASK_THROTTLE_IGNORE"/>
+  #|      <entry value="128" name="ATTITUDE_TARGET_TYPEMASK_ATTITUDE_IGNORE"/>
+  #|    </enum>
   #|  </enums>
   #|  <messages>
   #|    <message id="0" name="HEARTBEAT">
@@ -922,6 +966,180 @@ pub let official_standard_xml : String =
   #|      <field type="uint8_t" name="target_system">system ID of the target</field>
   #|      <field type="uint8_t" name="target_component">component ID of the target</field>
   #|      <field type="uint16_t" name="sequence">sequence number (must match the one in LOGGING_DATA_ACKED)</field>
+  #|    </message>
+  #|    <message id="38" name="MISSION_WRITE_PARTIAL_LIST">
+  #|      <description>This message is sent to the MAV to write a partial list. If start index == end index, only one item will be transmitted / updated.</description>
+  #|      <field type="uint8_t" name="target_system">System ID.</field>
+  #|      <field type="uint8_t" name="target_component">Component ID.</field>
+  #|      <field type="int16_t" name="start_index">Start index. Must be smaller / equal to the largest index of the current onboard list.</field>
+  #|      <field type="int16_t" name="end_index">End index, equal or greater than start index.</field>
+  #|      <extensions/>
+  #|      <field type="uint8_t" name="mission_type" enum="MAV_MISSION_TYPE">Mission type.</field>
+  #|    </message>
+  #|    <message id="39" name="MISSION_ITEM">
+  #|      <description>Message encoding a mission item (legacy floating-point coordinates).</description>
+  #|      <field type="uint8_t" name="target_system">System ID.</field>
+  #|      <field type="uint8_t" name="target_component">Component ID.</field>
+  #|      <field type="uint16_t" name="seq">Sequence.</field>
+  #|      <field type="uint8_t" name="frame" enum="MAV_FRAME">The coordinate system of the waypoint.</field>
+  #|      <field type="uint16_t" name="command" enum="MAV_CMD">The scheduled action for the waypoint.</field>
+  #|      <field type="uint8_t" name="current">false:0, true:1.</field>
+  #|      <field type="uint8_t" name="autocontinue">Autocontinue to next waypoint.</field>
+  #|      <field type="float" name="param1">PARAM1, see MAV_CMD enum.</field>
+  #|      <field type="float" name="param2">PARAM2, see MAV_CMD enum.</field>
+  #|      <field type="float" name="param3">PARAM3, see MAV_CMD enum.</field>
+  #|      <field type="float" name="param4">PARAM4, see MAV_CMD enum.</field>
+  #|      <field type="float" name="x">PARAM5 / local: X coordinate, global: latitude.</field>
+  #|      <field type="float" name="y">PARAM6 / local: Y coordinate, global: longitude.</field>
+  #|      <field type="float" name="z">PARAM7 / local: Z coordinate, global: altitude.</field>
+  #|      <extensions/>
+  #|      <field type="uint8_t" name="mission_type" enum="MAV_MISSION_TYPE">Mission type.</field>
+  #|    </message>
+  #|    <message id="83" name="ATTITUDE_TARGET">
+  #|      <description>Reports the current commanded vehicle attitude as specified by the autopilot.</description>
+  #|      <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
+  #|      <field type="uint8_t" name="type_mask" enum="ATTITUDE_TARGET_TYPEMASK">Bitmap to indicate which dimensions should be ignored by the vehicle.</field>
+  #|      <field type="float[4]" name="q">Attitude quaternion (w, x, y, z order, zero-rotation is 1, 0, 0, 0).</field>
+  #|      <field type="float" name="body_roll_rate" units="rad/s">Body roll rate.</field>
+  #|      <field type="float" name="body_pitch_rate" units="rad/s">Body pitch rate.</field>
+  #|      <field type="float" name="body_yaw_rate" units="rad/s">Body yaw rate.</field>
+  #|      <field type="float" name="thrust">Collective thrust, normalized to 0 .. 1.</field>
+  #|    </message>
+  #|    <message id="84" name="SET_POSITION_TARGET_LOCAL_NED">
+  #|      <description>Sets a desired vehicle position in a local north-east-down coordinate frame.</description>
+  #|      <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
+  #|      <field type="uint8_t" name="target_system">System ID.</field>
+  #|      <field type="uint8_t" name="target_component">Component ID.</field>
+  #|      <field type="uint8_t" name="coordinate_frame" enum="MAV_FRAME">Valid options are: MAV_FRAME_LOCAL_NED, MAV_FRAME_BODY_NED.</field>
+  #|      <field type="uint16_t" name="type_mask" enum="POSITION_TARGET_TYPEMASK">Bitmap to indicate which dimensions should be ignored by the vehicle.</field>
+  #|      <field type="float" name="x" units="m">X Position in NED frame.</field>
+  #|      <field type="float" name="y" units="m">Y Position in NED frame.</field>
+  #|      <field type="float" name="z" units="m">Z Position in NED frame (note, altitude is negative in NED).</field>
+  #|      <field type="float" name="vx" units="m/s">X velocity in NED frame.</field>
+  #|      <field type="float" name="vy" units="m/s">Y velocity in NED frame.</field>
+  #|      <field type="float" name="vz" units="m/s">Z velocity in NED frame.</field>
+  #|      <field type="float" name="afx" units="m/s/s">X acceleration or force in NED frame.</field>
+  #|      <field type="float" name="afy" units="m/s/s">Y acceleration or force in NED frame.</field>
+  #|      <field type="float" name="afz" units="m/s/s">Z acceleration or force in NED frame.</field>
+  #|      <field type="float" name="yaw" units="rad">yaw setpoint.</field>
+  #|      <field type="float" name="yaw_rate" units="rad/s">yaw rate setpoint.</field>
+  #|    </message>
+  #|    <message id="85" name="POSITION_TARGET_LOCAL_NED">
+  #|      <description>Reports the current commanded vehicle position, velocity, and acceleration as specified by the autopilot.</description>
+  #|      <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
+  #|      <field type="uint8_t" name="coordinate_frame" enum="MAV_FRAME">Valid options are: MAV_FRAME_LOCAL_NED, MAV_FRAME_BODY_NED.</field>
+  #|      <field type="uint16_t" name="type_mask" enum="POSITION_TARGET_TYPEMASK">Bitmap to indicate which dimensions should be ignored by the vehicle.</field>
+  #|      <field type="float" name="x" units="m">X Position in NED frame.</field>
+  #|      <field type="float" name="y" units="m">Y Position in NED frame.</field>
+  #|      <field type="float" name="z" units="m">Z Position in NED frame.</field>
+  #|      <field type="float" name="vx" units="m/s">X velocity in NED frame.</field>
+  #|      <field type="float" name="vy" units="m/s">Y velocity in NED frame.</field>
+  #|      <field type="float" name="vz" units="m/s">Z velocity in NED frame.</field>
+  #|      <field type="float" name="afx" units="m/s/s">X acceleration or force in NED frame.</field>
+  #|      <field type="float" name="afy" units="m/s/s">Y acceleration or force in NED frame.</field>
+  #|      <field type="float" name="afz" units="m/s/s">Z acceleration or force in NED frame.</field>
+  #|      <field type="float" name="yaw" units="rad">yaw setpoint.</field>
+  #|      <field type="float" name="yaw_rate" units="rad/s">yaw rate setpoint.</field>
+  #|    </message>
+  #|    <message id="100" name="OPTICAL_FLOW">
+  #|      <description>Optical flow from a flow sensor (e.g. optical mouse sensor).</description>
+  #|      <field type="uint64_t" name="time_usec" units="us">Timestamp (UNIX Epoch time or time since system boot).</field>
+  #|      <field type="uint8_t" name="sensor_id">Sensor ID.</field>
+  #|      <field type="int16_t" name="flow_x" units="dpix">Flow in x-sensor direction.</field>
+  #|      <field type="int16_t" name="flow_y" units="dpix">Flow in y-sensor direction.</field>
+  #|      <field type="float" name="flow_comp_m_x" units="m/s">Flow in x-sensor direction, angular-speed compensated.</field>
+  #|      <field type="float" name="flow_comp_m_y" units="m/s">Flow in y-sensor direction, angular-speed compensated.</field>
+  #|      <field type="uint8_t" name="quality">Optical flow quality / confidence. 0: bad, 255: maximum quality.</field>
+  #|      <field type="float" name="ground_distance" units="m">Ground distance. Positive value: distance known. Negative value: Unknown distance.</field>
+  #|      <extensions/>
+  #|      <field type="float" name="flow_rate_x" units="rad/s">Flow rate about X axis.</field>
+  #|      <field type="float" name="flow_rate_y" units="rad/s">Flow rate about Y axis.</field>
+  #|    </message>
+  #|    <message id="105" name="HIGHRES_IMU">
+  #|      <description>The IMU readings in SI units in NED body frame.</description>
+  #|      <field type="uint64_t" name="time_usec" units="us">Timestamp (UNIX Epoch time or time since system boot).</field>
+  #|      <field type="float" name="xacc" units="m/s/s">X acceleration.</field>
+  #|      <field type="float" name="yacc" units="m/s/s">Y acceleration.</field>
+  #|      <field type="float" name="zacc" units="m/s/s">Z acceleration.</field>
+  #|      <field type="float" name="xgyro" units="rad/s">Angular speed around X axis in body frame.</field>
+  #|      <field type="float" name="ygyro" units="rad/s">Angular speed around Y axis in body frame.</field>
+  #|      <field type="float" name="zgyro" units="rad/s">Angular speed around Z axis in body frame.</field>
+  #|      <field type="float" name="xmag" units="gauss">X Magnetic field.</field>
+  #|      <field type="float" name="ymag" units="gauss">Y Magnetic field.</field>
+  #|      <field type="float" name="zmag" units="gauss">Z Magnetic field.</field>
+  #|      <field type="float" name="abs_pressure" units="hPa">Absolute pressure.</field>
+  #|      <field type="float" name="diff_pressure" units="hPa">Differential pressure.</field>
+  #|      <field type="float" name="pressure_alt">Altitude calculated from pressure.</field>
+  #|      <field type="float" name="temperature" units="degC">Temperature.</field>
+  #|      <field type="uint16_t" name="fields_updated">Bitmap for fields that have updated since last message.</field>
+  #|      <extensions/>
+  #|      <field type="uint8_t" name="id">Id. Ids are numbered from 0 and map to IMUs numbered from 1.</field>
+  #|    </message>
+  #|    <message id="110" name="FILE_TRANSFER_PROTOCOL">
+  #|      <description>File transfer protocol message: https://mavlink.io/en/services/ftp.html.</description>
+  #|      <field type="uint8_t" name="target_network">Network ID (0 for broadcast).</field>
+  #|      <field type="uint8_t" name="target_system">System ID (0 for broadcast).</field>
+  #|      <field type="uint8_t" name="target_component">Component ID (0 for broadcast).</field>
+  #|      <field type="uint8_t[251]" name="payload">Variable length payload.</field>
+  #|    </message>
+  #|    <message id="242" name="HOME_POSITION">
+  #|      <description>Contains the home position.</description>
+  #|      <field type="int32_t" name="latitude" units="degE7">Latitude (WGS84).</field>
+  #|      <field type="int32_t" name="longitude" units="degE7">Longitude (WGS84).</field>
+  #|      <field type="int32_t" name="altitude" units="mm">Altitude (MSL).</field>
+  #|      <field type="float" name="x" units="m">Local X position of this position in the local coordinate frame (NED).</field>
+  #|      <field type="float" name="y" units="m">Local Y position of this position in the local coordinate frame (NED).</field>
+  #|      <field type="float" name="z" units="m">Local Z position of this position in the local coordinate frame (NED).</field>
+  #|      <field type="float[4]" name="q">World to surface normal and heading transformation of the takeoff position.</field>
+  #|      <field type="float" name="approach_x" units="m">Local X position of the end of the approach vector.</field>
+  #|      <field type="float" name="approach_y" units="m">Local Y position of the end of the approach vector.</field>
+  #|      <field type="float" name="approach_z" units="m">Local Z position of the end of the approach vector.</field>
+  #|      <extensions/>
+  #|      <field type="uint64_t" name="time_usec" units="us">Timestamp (UNIX Epoch time or time since system boot).</field>
+  #|    </message>
+  #|    <message id="266" name="LOGGING_DATA">
+  #|      <description>A message containing logged data (requires 24-bit MAVLink v2 message ID).</description>
+  #|      <field type="uint8_t" name="target_system">system ID of the target</field>
+  #|      <field type="uint8_t" name="target_component">component ID of the target</field>
+  #|      <field type="uint16_t" name="sequence">sequence number (can wrap)</field>
+  #|      <field type="uint8_t" name="length" units="bytes">data length</field>
+  #|      <field type="uint8_t" name="first_message_offset" units="bytes">offset into data where first message starts</field>
+  #|      <field type="uint8_t[249]" name="data">logged data</field>
+  #|    </message>
+  #|    <message id="320" name="PARAM_EXT_REQUEST_READ">
+  #|      <description>Request to read the value of a parameter with either the param_id string id or param_index.</description>
+  #|      <field type="uint8_t" name="target_system">System ID</field>
+  #|      <field type="uint8_t" name="target_component">Component ID</field>
+  #|      <field type="char[16]" name="param_id">Parameter id, terminated by NULL if the length is less than 16 human-readable chars.</field>
+  #|      <field type="int16_t" name="param_index">Parameter index. Set to -1 to use the Parameter ID field as identifier.</field>
+  #|    </message>
+  #|    <message id="321" name="PARAM_EXT_REQUEST_LIST">
+  #|      <description>Request all parameters of this component.</description>
+  #|      <field type="uint8_t" name="target_system">System ID</field>
+  #|      <field type="uint8_t" name="target_component">Component ID</field>
+  #|    </message>
+  #|    <message id="322" name="PARAM_EXT_VALUE">
+  #|      <description>Emit the value of a parameter.</description>
+  #|      <field type="char[16]" name="param_id">Parameter id, terminated by NULL if the length is less than 16 human-readable chars.</field>
+  #|      <field type="char[128]" name="param_value">Parameter value</field>
+  #|      <field type="uint8_t" name="param_type" enum="MAV_PARAM_EXT_TYPE">Parameter type.</field>
+  #|      <field type="uint16_t" name="param_count">Total number of parameters</field>
+  #|      <field type="uint16_t" name="param_index">Index of this parameter</field>
+  #|    </message>
+  #|    <message id="323" name="PARAM_EXT_SET">
+  #|      <description>Set a parameter value.</description>
+  #|      <field type="uint8_t" name="target_system">System ID</field>
+  #|      <field type="uint8_t" name="target_component">Component ID</field>
+  #|      <field type="char[16]" name="param_id">Parameter id, terminated by NULL if the length is less than 16 human-readable chars.</field>
+  #|      <field type="char[128]" name="param_value">Parameter value</field>
+  #|      <field type="uint8_t" name="param_type" enum="MAV_PARAM_EXT_TYPE">Parameter type.</field>
+  #|    </message>
+  #|    <message id="324" name="PARAM_EXT_ACK">
+  #|      <description>Response from a PARAM_EXT_SET message.</description>
+  #|      <field type="char[16]" name="param_id">Parameter id, terminated by NULL if the length is less than 16 human-readable chars.</field>
+  #|      <field type="char[128]" name="param_value">Parameter value (new value if PARAM_ACK_ACCEPTED, current value otherwise)</field>
+  #|      <field type="uint8_t" name="param_type" enum="MAV_PARAM_EXT_TYPE">Parameter type.</field>
+  #|      <field type="uint8_t" name="param_result" enum="PARAM_ACK">Result code.</field>
   #|    </message>
   #|  </messages>
   #|</mavlink>

@@ -1319,3 +1319,281 @@ pub fn TimesyncEstimator::on_probe_return(
   self.sample_count = self.sample_count + 1
   Some({ rtt_ns, clock_offset_ns, })
 }
+
+// ============================================================================
+// 6. MAVLink File Transfer Protocol (`FILE_TRANSFER_PROTOCOL` #110) Codec
+// ============================================================================
+
+///|
+/// Official MAVLink FTP opcodes carried inside the 251-byte `FILE_TRANSFER_PROTOCOL` (#110) payload.
+pub(all) enum FtpOpcode {
+  FtpNone
+  TerminateSession
+  ResetSessions
+  ListDirectory
+  OpenFileRO
+  ReadFile
+  CreateFile
+  WriteFile
+  RemoveFile
+  CreateDirectory
+  RemoveDirectory
+  OpenFileWO
+  TruncateFile
+  Rename
+  CalcFileCRC32
+  BurstReadFile
+  Ack
+  Nak
+} derive(Eq, Debug)
+
+///|
+pub extend FtpOpcode with Eq::{not_equal, equal}
+
+///|
+pub extend FtpOpcode with @debug.Debug::{to_repr}
+
+///|
+/// Convert `FtpOpcode` to its wire byte code.
+pub fn FtpOpcode::to_byte(self : FtpOpcode) -> Byte {
+  match self {
+    FtpNone => b'\x00'
+    TerminateSession => b'\x01'
+    ResetSessions => b'\x02'
+    ListDirectory => b'\x03'
+    OpenFileRO => b'\x04'
+    ReadFile => b'\x05'
+    CreateFile => b'\x06'
+    WriteFile => b'\x07'
+    RemoveFile => b'\x08'
+    CreateDirectory => b'\x09'
+    RemoveDirectory => b'\x0A'
+    OpenFileWO => b'\x0B'
+    TruncateFile => b'\x0C'
+    Rename => b'\x0D'
+    CalcFileCRC32 => b'\x0E'
+    BurstReadFile => b'\x0F'
+    Ack => b'\x80'
+    Nak => b'\x81'
+  }
+}
+
+///|
+/// Decode `FtpOpcode` from its wire byte code.
+pub fn FtpOpcode::from_byte(b : Byte) -> FtpOpcode? {
+  match b.to_int() & 0xFF {
+    0 => Some(FtpNone)
+    1 => Some(TerminateSession)
+    2 => Some(ResetSessions)
+    3 => Some(ListDirectory)
+    4 => Some(OpenFileRO)
+    5 => Some(ReadFile)
+    6 => Some(CreateFile)
+    7 => Some(WriteFile)
+    8 => Some(RemoveFile)
+    9 => Some(CreateDirectory)
+    10 => Some(RemoveDirectory)
+    11 => Some(OpenFileWO)
+    12 => Some(TruncateFile)
+    13 => Some(Rename)
+    14 => Some(CalcFileCRC32)
+    15 => Some(BurstReadFile)
+    128 => Some(Ack)
+    129 => Some(Nak)
+    _ => None
+  }
+}
+
+///|
+/// Structured MAVLink FTP sub-packet (12-byte little-endian header + up to 239 data bytes = 251 bytes max).
+pub(all) struct FtpPacket {
+  seq_number : UInt32
+  session : Byte
+  opcode : FtpOpcode
+  req_opcode : FtpOpcode
+  burst_complete : Bool
+  offset : UInt32
+  data : Bytes
+} derive(Eq, Debug)
+
+///|
+pub extend FtpPacket with Eq::{not_equal, equal}
+
+///|
+pub extend FtpPacket with @debug.Debug::{to_repr}
+
+///|
+/// Encode `FtpPacket` into a `FILE_TRANSFER_PROTOCOL` (#110) `MavMessage`.
+/// Returns `Err(PayloadTooLarge(_))` if `data.length() > 239`.
+pub fn FtpPacket::to_mav_message(
+  self : FtpPacket,
+  target_network~ : Byte = b'\x00',
+  target_system~ : Byte = b'\x01',
+  target_component~ : Byte = b'\x01',
+) -> Result[MavMessage, MavError] {
+  if self.data.length() > 239 {
+    return Err(PayloadTooLarge(self.data.length()))
+  }
+  let buf = FixedArray::make(251, b'\x00')
+  buf[0] = (self.seq_number & 0xFFU).to_byte()
+  buf[1] = ((self.seq_number >> 8) & 0xFFU).to_byte()
+  buf[2] = self.session
+  buf[3] = self.opcode.to_byte()
+  buf[4] = self.data.length().to_byte()
+  buf[5] = self.req_opcode.to_byte()
+  buf[6] = if self.burst_complete { b'\x01' } else { b'\x00' }
+  buf[7] = b'\x00'
+  buf[8] = (self.offset & 0xFFU).to_byte()
+  buf[9] = ((self.offset >> 8) & 0xFFU).to_byte()
+  buf[10] = ((self.offset >> 16) & 0xFFU).to_byte()
+  buf[11] = ((self.offset >> 24) & 0xFFU).to_byte()
+  for i = 0; i < self.data.length(); i = i + 1 {
+    buf[12 + i] = self.data[i]
+  }
+  Ok(
+    MsgFileTransferProtocol({
+      target_network,
+      target_system,
+      target_component,
+      payload: buf,
+    }),
+  )
+}
+
+///|
+/// Decode an `FtpPacket` from a `FileTransferProtocol` (#110) struct.
+pub fn FtpPacket::from_file_transfer_protocol(
+  ftp : FileTransferProtocol,
+) -> Result[FtpPacket, MavError] {
+  if ftp.payload.length() < 12 {
+    return Err(PayloadTooShort(12, ftp.payload.length()))
+  }
+  let seq_number = ftp.payload[0].to_uint() | (ftp.payload[1].to_uint() << 8)
+  let session = ftp.payload[2]
+  let opcode = match FtpOpcode::from_byte(ftp.payload[3]) {
+    Some(op) => op
+    None => return Err(SchemaError("Unknown MAVLink FTP opcode"))
+  }
+  let data_size = ftp.payload[4].to_int() & 0xFF
+  if data_size > 239 || 12 + data_size > ftp.payload.length() {
+    return Err(PayloadTooLarge(data_size))
+  }
+  let req_opcode = match FtpOpcode::from_byte(ftp.payload[5]) {
+    Some(op) => op
+    None => FtpNone
+  }
+  let burst_complete = ftp.payload[6] != b'\x00'
+  let offset = ftp.payload[8].to_uint() |
+    (ftp.payload[9].to_uint() << 8) |
+    (ftp.payload[10].to_uint() << 16) |
+    (ftp.payload[11].to_uint() << 24)
+  let data_arr : Array[Byte] = Array(capacity=data_size)
+  for i = 0; i < data_size; i = i + 1 {
+    data_arr.push(ftp.payload[12 + i])
+  }
+  Ok({
+    seq_number,
+    session,
+    opcode,
+    req_opcode,
+    burst_complete,
+    offset,
+    data: Bytes::from_array(data_arr),
+  })
+}
+
+// ============================================================================
+// 7. Telemetry Stream Rate & Bandwidth Analyzer (`TelemetryRateTracker`)
+// ============================================================================
+
+///|
+/// Per-message-ID reception counter and byte volume tracked by `TelemetryRateTracker`.
+pub(all) struct MessageRateStat {
+  msgid : UInt32
+  mut frame_count : Int32
+  mut payload_bytes : Int32
+  mut wire_bytes : Int32
+} derive(Eq, Debug)
+
+///|
+pub extend MessageRateStat with Eq::{not_equal, equal}
+
+///|
+pub extend MessageRateStat with @debug.Debug::{to_repr}
+
+///|
+/// Telemetry stream analyzer for computing per-message Hz frequency and link bandwidth utilization.
+pub(all) struct TelemetryRateTracker {
+  mut total_frames : Int32
+  mut total_wire_bytes : Int32
+  stats : Array[MessageRateStat]
+} derive(Eq, Debug)
+
+///|
+pub extend TelemetryRateTracker with Eq::{not_equal, equal}
+
+///|
+pub extend TelemetryRateTracker with @debug.Debug::{to_repr}
+
+///|
+/// Create a new `TelemetryRateTracker`.
+pub fn TelemetryRateTracker::new() -> TelemetryRateTracker {
+  { total_frames: 0, total_wire_bytes: 0, stats: [], }
+}
+
+///|
+/// Record a received `MavFrame` and its total wire byte length.
+pub fn TelemetryRateTracker::record_frame(
+  self : TelemetryRateTracker,
+  frame : MavFrame,
+  wire_len : Int32,
+) -> Unit {
+  self.total_frames = self.total_frames + 1
+  self.total_wire_bytes = self.total_wire_bytes + wire_len
+  let mid = frame.header.msgid
+  let plen = frame.payload.length()
+  for i = 0; i < self.stats.length(); i = i + 1 {
+    if self.stats[i].msgid == mid {
+      self.stats[i].frame_count = self.stats[i].frame_count + 1
+      self.stats[i].payload_bytes = self.stats[i].payload_bytes + plen
+      self.stats[i].wire_bytes = self.stats[i].wire_bytes + wire_len
+      return ()
+    }
+  }
+  self.stats.push({
+    msgid: mid,
+    frame_count: 1,
+    payload_bytes: plen,
+    wire_bytes: wire_len,
+  })
+}
+
+///|
+/// Compute the average message rate in Hz for `msgid` over a duration of `window_ms` milliseconds.
+pub fn TelemetryRateTracker::message_rate_hz(
+  self : TelemetryRateTracker,
+  msgid : UInt32,
+  window_ms : UInt64,
+) -> Double {
+  if window_ms == 0UL {
+    return 0.0
+  }
+  for s in self.stats {
+    if s.msgid == msgid {
+      return s.frame_count.to_double() * 1000.0 / window_ms.to_double()
+    }
+  }
+  0.0
+}
+
+///|
+/// Compute total link bandwidth in Bytes/second over `window_ms` milliseconds.
+pub fn TelemetryRateTracker::total_bandwidth_bytes_per_sec(
+  self : TelemetryRateTracker,
+  window_ms : UInt64,
+) -> Double {
+  if window_ms == 0UL {
+    return 0.0
+  }
+  self.total_wire_bytes.to_double() * 1000.0 / window_ms.to_double()
+}

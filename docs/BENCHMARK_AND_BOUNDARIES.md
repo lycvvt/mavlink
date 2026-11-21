@@ -1,15 +1,15 @@
 # MAVLink v2 官方黄金向量对标、实测带宽基准与适用边界白皮书 (`docs/BENCHMARK_AND_BOUNDARIES.md`)
 
-> **适用版本**：`lycvvt/mavlink v0.2.1`  
+> **适用版本**：`lycvvt/mavlink v0.3.0`  
 > **复现命令**：`moon run cmd/benchmark` / `moon test`
 
 ---
 
-## 1. 官方 C `c_library_v2` 45 条消息黄金向量对标 (`Golden Dialect Audit`)
+## 1. 官方 C `c_library_v2` 60 条消息黄金向量对标 (`Golden Dialect Audit`)
 
 MAVLink v2 协议通过将每条消息重排后的基础字段签名折叠为 1 字节的 `CRC_EXTRA` 种子（混入 ITU-T X.25 `CRC-16/MCRF4XX` 帧尾校验），强制保证通信双方的结构体内存布局 100% 一致。任何字段类型错误、标量宽度重排偏差、`<extensions/>` 切分错误或定长数组长度遗漏，都会导致 `CRC_EXTRA` 完全不匹配。
 
-下表为 `moon run cmd/benchmark` 对内置 45 条标准消息动态推导的 `CRC_EXTRA`、基础载荷长度（`base_len`）及扩展最大载荷长度（`max_len`）与官方 C 参考库 [`mavlink/c_library_v2`](https://github.com/mavlink/c_library_v2) 的实测逐项对标结果：
+下表为 `moon run cmd/benchmark` 对内置 60 条标准消息动态推导的 `CRC_EXTRA`、基础载荷长度（`base_len`）及扩展最大载荷长度（`max_len`）与官方 C 参考库 [`mavlink/c_library_v2`](https://github.com/mavlink/c_library_v2) 的实测逐项对标结果：
 
 | 序号 | 消息 ID | 消息名称 | 首字段 (重排后 `offset=0`) | 官方 `CRC_EXTRA` | 本库计算值 | `base_len / max_len` | 判定 |
 | :---: | :---: | :--- | :--- | :---: | :---: | :---: | :---: |
@@ -58,6 +58,21 @@ MAVLink v2 协议通过将每条消息重排后的基础字段签名折叠为 1 
 | 43 | `253` | `STATUSTEXT` | `severity (uint8_t)` | `83 (0x53)` | `83 (0x53)` | `51B / 54B` | PASS |
 | 44 | `254` | `DEBUG` | `time_boot_ms (uint32_t)` | `46 (0x2E)` | `46 (0x2E)` | `9B / 9B` | PASS |
 | 45 | `268` | `LOGGING_ACK` | `sequence (uint16_t)` | `14 (0x0E)` | `14 (0x0E)` | `4B / 4B` | PASS |
+| 46 | `38` | `MISSION_WRITE_PARTIAL_LIST` | `start_index (int16_t)` | `9 (0x09)` | `9 (0x09)` | `6B / 7B` | PASS |
+| 47 | `39` | `MISSION_ITEM` | `param1 (float)` | `254 (0xFE)` | `254 (0xFE)` | `37B / 38B` | PASS |
+| 48 | `83` | `ATTITUDE_TARGET` | `time_boot_ms (uint32_t)` | `22 (0x16)` | `22 (0x16)` | `37B / 37B` | PASS |
+| 49 | `84` | `SET_POSITION_TARGET_LOCAL_NED` | `time_boot_ms (uint32_t)` | `143 (0x8F)` | `143 (0x8F)` | `53B / 53B` | PASS |
+| 50 | `85` | `POSITION_TARGET_LOCAL_NED` | `time_boot_ms (uint32_t)` | `140 (0x8C)` | `140 (0x8C)` | `51B / 51B` | PASS |
+| 51 | `100` | `OPTICAL_FLOW` | `time_usec (uint64_t)` | `175 (0xAF)` | `175 (0xAF)` | `26B / 34B` | PASS |
+| 52 | `105` | `HIGHRES_IMU` | `time_usec (uint64_t)` | `93 (0x5D)` | `93 (0x5D)` | `62B / 63B` | PASS |
+| 53 | `110` | `FILE_TRANSFER_PROTOCOL` | `target_network (uint8_t)` | `84 (0x54)` | `84 (0x54)` | `254B / 254B` | PASS |
+| 54 | `242` | `HOME_POSITION` | `latitude (int32_t)` | `104 (0x68)` | `104 (0x68)` | `52B / 60B` | PASS |
+| 55 | `266` | `LOGGING_DATA` | `sequence (uint16_t)` | `193 (0xC1)` | `193 (0xC1)` | `255B / 255B` | PASS |
+| 56 | `320` | `PARAM_EXT_REQUEST_READ` | `param_index (int16_t)` | `243 (0xF3)` | `243 (0xF3)` | `20B / 20B` | PASS |
+| 57 | `321` | `PARAM_EXT_REQUEST_LIST` | `target_system (uint8_t)` | `88 (0x58)` | `88 (0x58)` | `2B / 2B` | PASS |
+| 58 | `322` | `PARAM_EXT_VALUE` | `param_count (uint16_t)` | `243 (0xF3)` | `243 (0xF3)` | `149B / 149B` | PASS |
+| 59 | `323` | `PARAM_EXT_SET` | `target_system (uint8_t)` | `78 (0x4E)` | `78 (0x4E)` | `147B / 147B` | PASS |
+| 60 | `324` | `PARAM_EXT_ACK` | `param_id (char[16])` | `132 (0x84)` | `132 (0x84)` | `146B / 146B` | PASS |
 
 ---
 

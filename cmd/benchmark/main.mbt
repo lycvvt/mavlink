@@ -4,8 +4,8 @@ fn main {
   println("  lycvvt/mavlink — Golden Vector & Protocol Benchmark Suite")
   println("==================================================================")
 
-  // 1. Audit all 45 official messages against golden CRC_EXTRA and payload lengths
-  let golden = @mavlink.official_45_golden_table()
+  // 1. Audit all 60 official messages against golden CRC_EXTRA and payload lengths
+  let golden = @mavlink.official_60_golden_table()
   let schema = match
     @mavlink.parse_dialect_xml(@mavlink.official_standard_xml) {
     Ok(s) => s

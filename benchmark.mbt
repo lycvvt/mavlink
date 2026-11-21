@@ -337,6 +337,123 @@ pub fn official_45_golden_table() -> Array[GoldenDialectEntry] {
 }
 
 ///|
+/// Official C `c_library_v2` / `pymavlink` golden metadata table for all 60 built-in messages.
+pub fn official_60_golden_table() -> Array[GoldenDialectEntry] {
+  let table = official_45_golden_table()
+  let extra15 : Array[GoldenDialectEntry] = [
+    {
+      msg_id: 38U,
+      name: "MISSION_WRITE_PARTIAL_LIST",
+      expected_crc_extra: b'\x09',
+      expected_base_len: 6,
+      expected_max_len: 7,
+    },
+    {
+      msg_id: 39U,
+      name: "MISSION_ITEM",
+      expected_crc_extra: b'\xfe',
+      expected_base_len: 37,
+      expected_max_len: 38,
+    },
+    {
+      msg_id: 83U,
+      name: "ATTITUDE_TARGET",
+      expected_crc_extra: b'\x16',
+      expected_base_len: 37,
+      expected_max_len: 37,
+    },
+    {
+      msg_id: 84U,
+      name: "SET_POSITION_TARGET_LOCAL_NED",
+      expected_crc_extra: b'\x8f',
+      expected_base_len: 53,
+      expected_max_len: 53,
+    },
+    {
+      msg_id: 85U,
+      name: "POSITION_TARGET_LOCAL_NED",
+      expected_crc_extra: b'\x8c',
+      expected_base_len: 51,
+      expected_max_len: 51,
+    },
+    {
+      msg_id: 100U,
+      name: "OPTICAL_FLOW",
+      expected_crc_extra: b'\xaf',
+      expected_base_len: 26,
+      expected_max_len: 34,
+    },
+    {
+      msg_id: 105U,
+      name: "HIGHRES_IMU",
+      expected_crc_extra: b'\x5d',
+      expected_base_len: 62,
+      expected_max_len: 63,
+    },
+    {
+      msg_id: 110U,
+      name: "FILE_TRANSFER_PROTOCOL",
+      expected_crc_extra: b'\x54',
+      expected_base_len: 254,
+      expected_max_len: 254,
+    },
+    {
+      msg_id: 242U,
+      name: "HOME_POSITION",
+      expected_crc_extra: b'\x68',
+      expected_base_len: 52,
+      expected_max_len: 60,
+    },
+    {
+      msg_id: 266U,
+      name: "LOGGING_DATA",
+      expected_crc_extra: b'\xc1',
+      expected_base_len: 255,
+      expected_max_len: 255,
+    },
+    {
+      msg_id: 320U,
+      name: "PARAM_EXT_REQUEST_READ",
+      expected_crc_extra: b'\xf3',
+      expected_base_len: 20,
+      expected_max_len: 20,
+    },
+    {
+      msg_id: 321U,
+      name: "PARAM_EXT_REQUEST_LIST",
+      expected_crc_extra: b'\x58',
+      expected_base_len: 2,
+      expected_max_len: 2,
+    },
+    {
+      msg_id: 322U,
+      name: "PARAM_EXT_VALUE",
+      expected_crc_extra: b'\xf3',
+      expected_base_len: 149,
+      expected_max_len: 149,
+    },
+    {
+      msg_id: 323U,
+      name: "PARAM_EXT_SET",
+      expected_crc_extra: b'\x4e',
+      expected_base_len: 147,
+      expected_max_len: 147,
+    },
+    {
+      msg_id: 324U,
+      name: "PARAM_EXT_ACK",
+      expected_crc_extra: b'\x84',
+      expected_base_len: 146,
+      expected_max_len: 146,
+    },
+  ]
+  for e in extra15 {
+    table.push(e)
+  }
+  table
+}
+
+///|
 /// Quantitative bandwidth reduction report comparing untrimmed payloads vs MAVLink v2 zero-trimmed frames.
 pub(all) struct ZeroTrimmingBandwidthReport {
   total_frames : Int32

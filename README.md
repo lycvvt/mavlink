@@ -6,7 +6,7 @@
 [![CI](https://github.com/lycvvt/mavlink/actions/workflows/ci.yml/badge.svg)](https://github.com/lycvvt/mavlink/actions)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Language](https://img.shields.io/badge/Language-MoonBit-purple.svg)](https://www.moonbitlang.com/)
-[![Tests](https://img.shields.io/badge/Tests-76%2F76%20passed-success.svg)](mavlink_wbtest.mbt)
+[![Tests](https://img.shields.io/badge/Tests-90%2F90%20passed-success.svg)](mavlink_wbtest.mbt)
 
 ---
 
@@ -28,11 +28,11 @@
 | **字段重排与定长数组** | 支持标量重排与 C 定长数组 | 支持标量重排与 Rust 定长数组 | **支持 8B→4B→2B→1B 稳定降序重排、`char[N]` 及 `FixedArray[T]` 越界防卫编码** |
 | **v2 尾部零截断与扩展** | 支持 `_mav_trim_payload` 与零填充拷贝 | 支持 v2 零字节截断与反序列化零扩展 | **支持**：200 帧 PX4 遥测流实测压缩载荷 **22.56%**（节省整帧无线带宽 **17.13%**） |
 | **SHA-256 13B 帧签名** | 支持（需注入回调或状态结构） | 部分分支支持 | **原生内置 FIPS 180-4 SHA-256 与 48-bit 单调时间戳防重放攻击** |
-| **高阶微服务状态机** | 不含（仅提供底层帧序列化，状态机在 MAVSDK） | 不含（位于外部上层库） | **原生内置 5 大微服务状态机**：Heartbeat、Parameter、Mission、Command、Timesync |
+| **高阶微服务状态机** | 不含（仅提供底层帧序列化，状态机在 MAVSDK） | 不含（位于外部上层库） | **原生内置 7 大微服务与诊断组件**：Heartbeat、Parameter、Mission、Command、Timesync、FTP (#110)、TelemetryRateTracker |
 | **外设硬件驱动 / 传输层** | 不含串口/套接字驱动（纯字节流编解码） | 可选 `tokio` / `serialport` 适配层 | **明确非目标**：仅负责纯字节流帧编解码与协议状态机，与底层 OS I/O 解耦 |
 
 ### 协议一致性与工程适用边界
-- **字节流二进制兼容性边界**：严格遵循 MAVLink v2 官方线序规范。所有基础字段（`<extensions/>` 之前）按标量元素字节宽度（8B → 4B → 2B → 1B）执行稳定降序排列，扩展字段保持 XML 声明顺序追加在末尾；定长数组字段（如 `float[4]`、`uint16_t[10]`、`uint8_t[18]`）按单元素宽度参与重排，并在计算 `CRC_EXTRA` 时向 X.25 累加器注入单字节数组长度。经 [`cmd/benchmark`](cmd/benchmark/main.mbt) 实测，内置 **45 条标准消息** 的 `CRC_EXTRA`、`base_payload_len` 与 `max_payload_len` 与官方 C `c_library_v2` 100% 一致。
+- **字节流二进制兼容性边界**：严格遵循 MAVLink v2 官方线序规范。所有基础字段（`<extensions/>` 之前）按标量元素字节宽度（8B → 4B → 2B → 1B）执行稳定降序排列，扩展字段保持 XML 声明顺序追加在末尾；定长数组字段（如 `float[4]`、`uint16_t[10]`、`uint8_t[251]`）按单元素宽度参与重排，并在计算 `CRC_EXTRA` 时向 X.25 累加器注入单字节数组长度。经 [`cmd/benchmark`](cmd/benchmark/main.mbt) 实测，内置 **60 条标准消息** 的 `CRC_EXTRA`、`base_payload_len` 与 `max_payload_len` 与官方 C `c_library_v2` 100% 一致。
 - **MAVLink v1 与 v2 消息 ID 边界**：MAVLink v1 帧头仅支持 8-bit 消息 ID（`0 .. 255`），不支持 `<extensions/>` 截断与 13 字节签名块；当尝试使用 v1 协议编码消息 ID $> 255$（如 `LOGGING_ACK #268`）时，编码器确定性返回 `Err(MavError::V1MessageIdOverflow(msgid))`。
 - **XML Schema 与定长数组边界**：单条消息最大载荷受限于协议规范的 `255` 字节上限（`255B` 通过校验，`256B` 返回 `Err(MavError::SchemaError(_))`）；自动生成的 `FixedArray[T]` 编码器对长度不足 `N` 的输入数组自动补零，对超出 `N` 的输入数组安全截断至 `N` 个元素，保证线序偏移绝对恒定。
 
@@ -60,12 +60,14 @@
   - 单帧无状态编解码函数 `encode_frame` 与 `decode_frame`。
   - 面向 UART / SiK 数传电台 / UDP 分片环境的流式状态机 `FrameParser`：支持前导乱码跳过、任意分片半包重组、CRC 失败单字节滑动重同步及基于 `seq` 的链路丢包计数 `packets_dropped`。
 
-- **高阶 MAVLink v2 微服务状态机 (`microservices.mbt`)**
+- **高阶 MAVLink v2 微服务状态机与遥测诊断 (`microservices.mbt`)**
   - **多节点心跳与链路质量监控 (`HeartbeatMonitor`)**：追踪多飞控/组件节点的在线状态（`is_node_alive`）、解锁状态（`armed`）、飞行模式与丢包率（`node_packet_loss_ratio`）。
   - **机载参数同步服务 (`ParameterClient` / `ParameterServer`)**：支持全量参数列表拉取（`PARAM_REQUEST_LIST`）、丢包缺失索引自动定位与定向补齐（`PARAM_REQUEST_READ`）、带验证回执的 `PARAM_SET` 参数修改与超时重试熔断。
   - **双向航点任务服务 (`MissionUploadClient` / `MissionDownloadClient` / `MissionServer`)**：支持航点列表上传、下载、清空（`MISSION_CLEAR_ALL`）、当前航点切换（`MISSION_SET_CURRENT`）、乱序航点拒绝（`MavMissionInvalidSequence`）与超时重传。
   - **控制指令状态机 (`CommandClient`)**：支持 `COMMAND_LONG` 超时重传时自动递增 `confirmation` 计数器（`0 → 1 → 2...`）、`MAV_RESULT_IN_PROGRESS` 进度百分比追踪与 `COMMAND_CANCEL` (#80) 取消指令。
   - **双向时钟同步与时延估计 (`TimesyncEstimator`)**：基于 `TIMESYNC` (#111) 计算往返时延（RTT）与机载时钟偏移，内置 EMA 指数滑动平均抖动滤波。
+  - **机载文件传输子协议编解码 (`FtpOpcode` / `FtpPacket`)**：在 `FILE_TRANSFER_PROTOCOL` (#110) 的 251 字节载荷中封装 12 字节小端序 FTP 帧头与最多 239 字节数据，支持 18 种标准 FTP 操作码（`OpenFileRO`、`ReadFile`、`WriteFile`、`ListDirectory`、`CalcFileCRC32`、`Ack`/`Nak` 等）。
+  - **遥测流频率与带宽统计 (`TelemetryRateTracker`)**：按消息 ID 实时统计接收帧率（Hz）与链路总吞吐率（Bytes/s）。
 
 - **多文件 `<include>` XML 解析与自举代码生成器 (`xml.mbt` / `codegen.mbt` / `standard_dialect.mbt`)**
   - 支持单文件 `parse_dialect_xml` 与多文件递归 `parse_dialect_xml_with_includes`（含菱形依赖去重与循环 `<include>` 检测）。
@@ -84,7 +86,7 @@ moon add lycvvt/mavlink
 ```
 
 ### 运行测试
-执行全量 76 项白盒、黑盒、黄金向量、微服务状态机与随机流 Fuzz 测试：
+执行全量 90 项白盒、黑盒、黄金向量、微服务状态机与随机流 Fuzz 测试：
 ```bash
 moon test
 ```
@@ -97,7 +99,7 @@ moon run cmd/main
 # 2. 运行官方 XML -> MoonBit 自举代码生成器 CLI
 moon run cmd/codegen
 
-# 3. 运行 45 条官方消息黄金向量核验、v1/v2 带宽基准、SHA-256 安全审计与强噪声恢复压测 CLI
+# 3. 运行 60 条官方消息黄金向量核验、v1/v2 带宽基准、SHA-256 安全审计与强噪声恢复压测 CLI
 moon run cmd/benchmark
 ```
 
@@ -188,39 +190,39 @@ let (merged_schema, moonbit_code) = @mavlink.generate_moonbit_from_xml_with_incl
 
 ---
 
-## 内置标准方言消息表 (45 Messages & 18 Enums)
+## 内置标准方言消息表 (60 Messages & 22 Enums)
 
-[`standard_dialect.mbt`](standard_dialect.mbt) 由 [`cmd/codegen`](cmd/codegen/main.mbt) 从 [`xml_catalog.mbt`](xml_catalog.mbt) 自举生成，完整覆盖以下 **45 条 PX4 / ArduPilot 官方飞控消息** 与 **18 个标准枚举**：
+[`standard_dialect.mbt`](standard_dialect.mbt) 由 [`cmd/codegen`](cmd/codegen/main.mbt) 从 [`xml_catalog.mbt`](xml_catalog.mbt) 自举生成，完整覆盖以下 **60 条 PX4 / ArduPilot 官方飞控消息** 与 **22 个标准枚举**：
 
 | 消息分类 | 内置官方消息列表 (ID 与名称) |
 | :--- | :--- |
-| **系统心跳与链路管理 (6 条)** | `#0 HEARTBEAT` (`CRC=50`), `#1 SYS_STATUS` (`124`), `#2 SYSTEM_TIME` (`137`), `#4 PING` (`237`), `#11 SET_MODE` (`89`), `#148 AUTOPILOT_VERSION` (`178`), `#245 EXTENDED_SYS_STATE` (`130`) |
-| **机载参数协议 (4 条)** | `#20 PARAM_REQUEST_READ` (`214`), `#21 PARAM_REQUEST_LIST` (`159`), `#22 PARAM_VALUE` (`220`), `#23 PARAM_SET` (`168`) |
-| **IMU/气压/测距/电池传感器 (7 条)** | `#24 GPS_RAW_INT` (`24`), `#26 SCALED_IMU` (`170`), `#27 RAW_IMU` (`144`), `#29 SCALED_PRESSURE` (`115`), `#132 DISTANCE_SENSOR` (`85`), `#147 BATTERY_STATUS` (`154`) |
-| **姿态四元数、导航与 HUD (5 条)** | `#30 ATTITUDE` (`39`), `#31 ATTITUDE_QUATERNION` (`246`), `#32 LOCAL_POSITION_NED` (`185`), `#33 GLOBAL_POSITION_INT` (`104`), `#74 VFR_HUD` (`20`) |
+| **系统心跳与链路管理 (8 条)** | `#0 HEARTBEAT` (`CRC=50`), `#1 SYS_STATUS` (`124`), `#2 SYSTEM_TIME` (`137`), `#4 PING` (`237`), `#11 SET_MODE` (`89`), `#148 AUTOPILOT_VERSION` (`178`), `#242 HOME_POSITION` (`104`), `#245 EXTENDED_SYS_STATE` (`130`) |
+| **标准与扩展参数协议 (9 条)** | `#20 PARAM_REQUEST_READ` (`214`), `#21 PARAM_REQUEST_LIST` (`159`), `#22 PARAM_VALUE` (`220`), `#23 PARAM_SET` (`168`), `#320 PARAM_EXT_REQUEST_READ` (`243`), `#321 PARAM_EXT_REQUEST_LIST` (`88`), `#322 PARAM_EXT_VALUE` (`243`), `#323 PARAM_EXT_SET` (`78`), `#324 PARAM_EXT_ACK` (`132`) |
+| **IMU/光流/气压/测距/电池 (8 条)** | `#24 GPS_RAW_INT` (`24`), `#26 SCALED_IMU` (`170`), `#27 RAW_IMU` (`144`), `#29 SCALED_PRESSURE` (`115`), `#100 OPTICAL_FLOW` (`175`), `#105 HIGHRES_IMU` (`93`), `#132 DISTANCE_SENSOR` (`85`), `#147 BATTERY_STATUS` (`154`) |
+| **姿态四元数、导航与 HUD (8 条)** | `#30 ATTITUDE` (`39`), `#31 ATTITUDE_QUATERNION` (`246`), `#32 LOCAL_POSITION_NED` (`185`), `#33 GLOBAL_POSITION_INT` (`104`), `#74 VFR_HUD` (`20`), `#83 ATTITUDE_TARGET` (`22`), `#84 SET_POSITION_TARGET_LOCAL_NED` (`143`), `#85 POSITION_TARGET_LOCAL_NED` (`140`) |
 | **遥控通道、舵机与姿态控制 (5 条)** | `#35 RC_CHANNELS_RAW` (`244`), `#36 SERVO_OUTPUT_RAW` (`222`), `#65 RC_CHANNELS` (`118`), `#69 MANUAL_CONTROL` (`243`), `#82 SET_ATTITUDE_TARGET` (`49`) |
-| **双向航点任务协议 (10 条)** | `#40 MISSION_REQUEST` (`230`), `#41 MISSION_SET_CURRENT` (`28`), `#42 MISSION_CURRENT` (`28`), `#43 MISSION_REQUEST_LIST` (`132`), `#44 MISSION_COUNT` (`221`), `#45 MISSION_CLEAR_ALL` (`232`), `#46 MISSION_ITEM_REACHED` (`11`), `#47 MISSION_ACK` (`153`), `#51 MISSION_REQUEST_INT` (`196`), `#73 MISSION_ITEM_INT` (`38`) |
-| **控制指令、时钟同步与日志 (8 条)** | `#75 COMMAND_INT` (`158`), `#76 COMMAND_LONG` (`152`), `#77 COMMAND_ACK` (`143`), `#80 COMMAND_CANCEL` (`14`), `#111 TIMESYNC` (`34`), `#253 STATUSTEXT` (`83`), `#254 DEBUG` (`46`), `#268 LOGGING_ACK` (`14`) |
+| **双向航点任务协议 (12 条)** | `#38 MISSION_WRITE_PARTIAL_LIST` (`9`), `#39 MISSION_ITEM` (`254`), `#40 MISSION_REQUEST` (`230`), `#41 MISSION_SET_CURRENT` (`28`), `#42 MISSION_CURRENT` (`28`), `#43 MISSION_REQUEST_LIST` (`132`), `#44 MISSION_COUNT` (`221`), `#45 MISSION_CLEAR_ALL` (`232`), `#46 MISSION_ITEM_REACHED` (`11`), `#47 MISSION_ACK` (`153`), `#51 MISSION_REQUEST_INT` (`196`), `#73 MISSION_ITEM_INT` (`38`) |
+| **控制指令、FTP、时钟同步与日志 (10 条)** | `#75 COMMAND_INT` (`158`), `#76 COMMAND_LONG` (`152`), `#77 COMMAND_ACK` (`143`), `#80 COMMAND_CANCEL` (`14`), `#110 FILE_TRANSFER_PROTOCOL` (`84`), `#111 TIMESYNC` (`34`), `#253 STATUSTEXT` (`83`), `#254 DEBUG` (`46`), `#266 LOGGING_DATA` (`193`), `#268 LOGGING_ACK` (`14`) |
 
-> 全部 45 条消息的逐项 `CRC_EXTRA` 黄金向量核验表、200 帧 PX4 遥测流带宽压缩实测数据与强噪声分片压测数据详见 [docs/BENCHMARK_AND_BOUNDARIES.md](docs/BENCHMARK_AND_BOUNDARIES.md)。
+> 全部 60 条消息的逐项 `CRC_EXTRA` 黄金向量核验表、200 帧 PX4 遥测流带宽压缩实测数据与强噪声分片压测数据详见 [docs/BENCHMARK_AND_BOUNDARIES.md](docs/BENCHMARK_AND_BOUNDARIES.md)。
 
 ---
 
 ## 协议验证与实测基准汇总
 
-本项目建立 76 项对齐官方 MAVLink v2 规范与 NIST 密码学标准的自动化测试套件（[`mavlink_wbtest.mbt`](mavlink_wbtest.mbt) 65 项白盒测试与 [`mavlink_test.mbt`](mavlink_test.mbt) 11 项黑盒测试）：
+本项目建立 90 项对齐官方 MAVLink v2 规范与 NIST 密码学标准的自动化测试套件（[`mavlink_wbtest.mbt`](mavlink_wbtest.mbt) 76 项白盒测试与 [`mavlink_test.mbt`](mavlink_test.mbt) 14 项黑盒测试）：
 
 | 编号 | 测试与基准模块 | 验证基准与技术点 | 实测验证结果 | 判定 |
 | :---: | :--- | :--- | :---: | :---: |
 | **1** | **ITU-T X.25 CRC 累加器** | 标准 ASCII 向量 `"123456789"` 校验值与分片累积等价性 | 精确等于 `0x906E` | PASS |
-| **2** | **45 条消息 `CRC_EXTRA` 黄金向量** | 对照官方 C `c_library_v2` 核验全部 45 条消息的 `CRC_EXTRA` 与 `base/max_len` | **45 / 45 (100% 吻合)** | PASS |
+| **2** | **60 条消息 `CRC_EXTRA` 黄金向量** | 对照官方 C `c_library_v2` 核验全部 60 条消息的 `CRC_EXTRA` 与 `base/max_len` | **60 / 60 (100% 吻合)** | PASS |
 | **3** | **小端序极值与定长数组边界** | 有符号/无符号整数极值、IEEE-754 `-0.0`、`char[N]` 嵌零截断、`FixedArray` 补零/截断 | 双向无损闭环 | PASS |
 | **4** | **v2 尾部零截断带宽收益基准** | 200 帧典型 PX4 混合遥测流（未压缩载荷 `7,580 B` vs 零截断后 `5,870 B`） | **载荷压缩 22.56%，整帧节省 17.13%** | PASS |
 | **5** | **v1 vs v2 线上帧带宽交叉对标** | 100 帧飞控控制与状态批次（v1 固定长 `4,125 B` vs v2 零截断 `3,580 B`） | **v2 比 v1 净省 545 B (-13.21%)** | PASS |
 | **6** | **SHA-256 签名与 50 次攻击审计** | 100 帧合法签名 + 50 帧对抗攻击（15 重放、15 回退、10 伪造密钥、10 标签篡改） | **100/100 放行，50/50 攻击拦截** | PASS |
 | **7** | **`FrameParser` 强噪声与极端分片** | 200 帧遥测注入 `32B/帧` 随机噪声（共 `6,400B` 噪声）并以 `1B` 单字节逐粒推入 | **200 / 200 帧恢复，14/14 丢包捕获** | PASS |
 | **8** | **1,024B 伪随机含假同步字 Fuzz** | 含伪造 `0xFD`/`0xFE` 的 1,024B 随机损坏字节流 + 签名帧恢复 | 零崩溃，100% 还原签名帧 | PASS |
-| **9** | **五大 MAVLink v2 微服务状态机** | Heartbeat 多机隔离、Parameter 丢包补齐、Mission 上传/下载/清空、Command 递增确认与 Timesync | 状态转移与超时重传 100% 准确 | PASS |
+| **9** | **七大 MAVLink v2 微服务与诊断** | Heartbeat、Parameter、Mission、Command、Timesync、FTP (#110) 编解码与 RateTracker | 状态转移与超时重传 100% 准确 | PASS |
 | **10** | **多文件 `<include>` XML 代码生成** | DAG 拓扑合并、菱形依赖去重、循环包含拦截、`255B/256B` 载荷上限边界 | 自举编译 `0 warnings` | PASS |
 
 ---
@@ -229,7 +231,7 @@ let (merged_schema, moonbit_code) = @mavlink.generate_moonbit_from_xml_with_incl
 
 ```text
 mavlink/
-├── moon.mod                            # MoonBit 模块配置清单 (lycvvt/mavlink v0.2.1)
+├── moon.mod                            # MoonBit 模块配置清单 (lycvvt/mavlink v0.3.0)
 ├── moon.pkg                            # 根包导入配置
 ├── LICENSE                             # Apache-2.0 许可证
 ├── NOTICE                              # 第三方知识来源与官方 MAVLink XML Schema 声明
@@ -242,12 +244,12 @@ mavlink/
 ├── frame.mbt                           # v1/v2 帧编解码与串口流式状态机 FrameParser
 ├── xml.mbt                             # 官方 <mavlink> XML 解析器、多文件 <include> 合并与重排引擎
 ├── codegen.mbt                         # 自举式 MoonBit 强类型编解码代码生成器
-├── xml_catalog.mbt                     # 官方 minimal.xml + common.xml (18 枚举 / 45 消息) 定义
-├── standard_dialect.mbt                # 由代码生成器自举产出的 18 个枚举与 45 条消息实现
-├── microservices.mbt                   # 五大 MAVLink v2 微服务状态机 (Heartbeat/Param/Mission/Cmd/Timesync)
-├── benchmark.mbt                       # 45 条消息黄金向量核验、v1/v2 带宽基准与安全/抗噪压测引擎
-├── mavlink_wbtest.mbt                  # 65 项白盒单元、边界、微服务与 Fuzz 测试
-├── mavlink_test.mbt                    # 11 项黑盒集成测试
+├── xml_catalog.mbt                     # 官方 minimal.xml + common.xml (22 枚举 / 60 消息) 定义
+├── standard_dialect.mbt                # 由代码生成器自举产出的 22 个枚举与 60 条消息实现
+├── microservices.mbt                   # 七大 MAVLink v2 微服务与诊断组件 (Heartbeat/Param/Mission/Cmd/Timesync/FTP/Rate)
+├── benchmark.mbt                       # 60 条消息黄金向量核验、v1/v2 带宽基准与安全/抗噪压测引擎
+├── mavlink_wbtest.mbt                  # 76 项白盒单元、边界、微服务与 Fuzz 测试
+├── mavlink_test.mbt                    # 14 项黑盒集成测试
 ├── cmd/
 │   ├── main/                           # 协议栈闭环验证与综合演示 CLI
 │   ├── codegen/                        # 官方 XML -> MoonBit 命令行代码生成器

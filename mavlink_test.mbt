@@ -91,19 +91,21 @@ test "blackbox: enum roundtrip for MavAutopilot, MavType, MavState, MavCmd, MavR
 }
 
 ///|
-test "blackbox: self-hosting verification of official_standard_xml (18 enums, 45 messages)" {
+test "blackbox: self-hosting verification of official_standard_xml (22 enums, 60 messages)" {
   let (schema, code) = match
     @mavlink.generate_moonbit_from_xml(@mavlink.official_standard_xml) {
     Ok(res) => res
     Err(e) => fail(e.to_repr().to_string())
   }
   assert_eq(schema.version, 3)
-  assert_eq(schema.enums.length(), 18)
-  assert_eq(schema.messages.length(), 45)
+  assert_eq(schema.enums.length(), 22)
+  assert_eq(schema.messages.length(), 60)
   assert_true(code.contains("pub(all) struct Heartbeat"))
   assert_true(code.contains("pub(all) struct MissionItemInt"))
   assert_true(code.contains("pub(all) struct BatteryStatus"))
   assert_true(code.contains("pub(all) struct AutopilotVersion"))
+  assert_true(code.contains("pub(all) struct FileTransferProtocol"))
+  assert_true(code.contains("pub(all) struct ParamExtValue"))
   assert_true(code.contains("pub(all) struct LoggingAck"))
   assert_true(code.contains("pub(all) enum MavCoordFrame"))
   assert_true(code.contains("pub(all) enum MavParamType"))
@@ -485,4 +487,63 @@ test "blackbox: public benchmark evaluators return deterministic metrics" {
   let sec = @mavlink.evaluate_signing_security_audit()
   assert_eq(sec.valid_signed_accepted, 100)
   assert_eq(sec.attack_frames_rejected, 50)
+}
+
+///|
+test "blackbox: official_60_golden_table matches all 60 built-in message CRC_EXTRA lookups" {
+  let golden60 = @mavlink.official_60_golden_table()
+  assert_eq(golden60.length(), 60)
+  for entry in golden60 {
+    assert_eq(
+      @mavlink.lookup_message_crc_extra(entry.msg_id),
+      Some(entry.expected_crc_extra),
+    )
+    assert_eq(@mavlink.lookup_message_name(entry.msg_id), Some(entry.name))
+  }
+}
+
+///|
+test "blackbox: FtpPacket directory listing and read acknowledgement roundtrip" {
+  let list_pkt : @mavlink.FtpPacket = {
+    seq_number: 100U,
+    session: b'\x00',
+    opcode: @mavlink.FtpOpcode::ListDirectory,
+    req_opcode: @mavlink.FtpOpcode::FtpNone,
+    burst_complete: false,
+    offset: 0U,
+    data: b"/fs/microsd",
+  }
+  let msg = match list_pkt.to_mav_message() {
+    Ok(m) => m
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  match msg {
+    @mavlink.MavMessage::MsgFileTransferProtocol(ftp) =>
+      assert_eq(
+        @mavlink.FtpPacket::from_file_transfer_protocol(ftp),
+        Ok(list_pkt),
+      )
+    _ => fail("Expected MsgFileTransferProtocol")
+  }
+}
+
+///|
+test "blackbox: TelemetryRateTracker multi-stream rate and bandwidth audit" {
+  let tracker = @mavlink.TelemetryRateTracker::new()
+  let hb = @mavlink.MavMessage::MsgHeartbeat({
+    custom_mode: 0U,
+    mav_type: b'\x02',
+    autopilot: b'\x0c',
+    base_mode: b'\xd1',
+    system_status: b'\x04',
+    mavlink_version: b'\x03',
+  })
+  let (w, f) = match
+    hb.encode_to_frame(seq=b'\x00', sysid=b'\x01', compid=b'\x01') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  tracker.record_frame(f, w.length())
+  assert_eq(tracker.total_frames, 1)
+  assert_eq(tracker.message_rate_hz(0U, 1000UL), 1.0)
 }

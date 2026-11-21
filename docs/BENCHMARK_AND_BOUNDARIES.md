@@ -1,6 +1,6 @@
 # MAVLink v2 官方黄金向量对标、实测带宽基准与适用边界白皮书 (`docs/BENCHMARK_AND_BOUNDARIES.md`)
 
-> **适用版本**：`lycvvt/mavlink v0.2.0`  
+> **适用版本**：`lycvvt/mavlink v0.2.1`  
 > **复现命令**：`moon run cmd/benchmark` / `moon test`
 
 ---
@@ -79,7 +79,32 @@ MAVLink v2 协议通过将每条消息重排后的基础字段签名折叠为 1 
 
 ---
 
-## 3. `FrameParser` 串口强噪声与极端分片流式恢复基准 (`Noisy Stream Stress Benchmark`)
+## 3. MAVLink v1 (`0xFE`) 与 MAVLink v2 (`0xFD`) 线上帧带宽交叉对标 (`v1 vs v2 Wire Efficiency`)
+
+MAVLink v2 的帧头比 v1 多 4 字节（10B vs 6B，用于承载 24-bit 扩展消息 ID 以及 `incompat_flags` / `compat_flags`）。然而，由于 v2 引入了尾部连续零字节截断机制，`evaluate_v1_vs_v2_efficiency()` 在 100 帧典型飞控指令与状态混合批次（30 帧 8 通道 `RC_CHANNELS`、25 帧四旋翼 `SERVO_OUTPUT_RAW`、25 帧悬停 `ATTITUDE`、10 帧短告警 `STATUSTEXT`、10 帧单参数 `COMMAND_LONG`）下的实测对标数据表明，**v2 不仅没有增加总无线带宽开销，反而比 v1 进一步降低了 `13.21%` 的总线上字节数**：
+
+| 协议版本 | 帧头 + CRC 固定开销 | 100 帧批次总线上字节数 | 相比 v1 净节省字节 | 协议能力差异 |
+| :--- | :---: | :---: | :---: | :--- |
+| **MAVLink v1 (`0xFE`)** | `6B Header + 2B CRC = 8B` | `4,125 B` | 基准 (0.0%) | 仅支持 8-bit 消息 ID (`0..255`)，固定基础载荷长度，不支持 `<extensions/>` 与帧签名 |
+| **MAVLink v2 (`0xFD`)** | `10B Header + 2B CRC = 12B` | **`3,580 B`** | **`-545 B (-13.21%)`** | 支持 24-bit 扩展消息 ID (`0..16777215`)、尾部零截断、`<extensions/>` 演进与 13B SHA-256 签名 |
+
+---
+
+## 4. FIPS 180-4 SHA-256 13B 帧安全签名与 50 次对抗攻击审计 (`Signing Security Audit`)
+
+`evaluate_signing_security_audit()` 对 100 帧连续签名遥测流与 50 帧模拟无线信道攻击流量进行自动化安全审计：
+
+| 审计维度 | 注入帧数 | 接收端放行 / 拦截结果 | 线上带宽变化 | 判定 |
+| :--- | :---: | :---: | :---: | :---: |
+| **合法单调递增时间戳签名帧** | 100 帧 | **100 / 100 放行 (100.0%)** | 未签名 `2,450 B` → 签名 `3,750 B` (`+13B/帧`, `+53.06%`) | PASS |
+| **攻击 1：完全重放攻击 (Exact Replay)** | 15 帧 | **15 / 15 拦截 (`Err(SignatureInvalid)`)** | 时间戳等于历史已接收值，被单调递增门控拦截 | PASS |
+| **攻击 2：时间戳回退重放 (Timestamp Rollback)** | 15 帧 | **15 / 15 拦截 (`Err(SignatureInvalid)`)** | 持有合法密钥但 48-bit 时间戳小于当前会话水位线 | PASS |
+| **攻击 3：伪造密钥攻击 (Rogue 32B Key)** | 10 帧 | **10 / 10 拦截 (`Err(SignatureInvalid)`)** | 递增时间戳合法，但 6 字节 `sha256_48` 标签不匹配 | PASS |
+| **攻击 4：签名标签篡改 (1-Bit Tag Tamper)** | 10 帧 | **10 / 10 拦截 (`Err(SignatureInvalid)`)** | 翻转签名块最低 1 比特，被常量级字节比对拦截 | PASS |
+
+---
+
+## 5. `FrameParser` 串口强噪声与极端分片流式恢复基准 (`Noisy Stream Stress Benchmark`)
 
 针对无人机无线数传电台（SiK Radio / ELRS / UART）常见的乱码干扰与不规则分片，`evaluate_noisy_stream_recovery()` 在三组递增压力配置下对 `FrameParser` 进行确定性压测：
 

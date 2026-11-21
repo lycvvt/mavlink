@@ -15,7 +15,7 @@ fn main {
     }
   }
   println(
-    "\n[1/4] Golden CRC_EXTRA & Wire Layout Audit (\{golden.length()} Official Messages):",
+    "\n[1/6] Golden CRC_EXTRA & Wire Layout Audit (\{golden.length()} Official Messages):",
   )
   let mut matched = 0
   for g in golden {
@@ -37,7 +37,7 @@ fn main {
   // 2. Zero-Trimming Bandwidth Savings Benchmark
   let bw = @mavlink.evaluate_zero_trimming_bandwidth()
   println(
-    "\n[2/4] MAVLink v2 Trailing-Zero Truncation Bandwidth Benchmark (\{bw.total_frames} PX4 Frames):",
+    "\n[2/6] MAVLink v2 Trailing-Zero Truncation Bandwidth Benchmark (\{bw.total_frames} PX4 Frames):",
   )
   println("  -> Untrimmed Payload Bytes : \{bw.untrimmed_payload_bytes} B")
   println("  -> v2 Trimmed Payload Bytes: \{bw.trimmed_payload_bytes} B")
@@ -47,8 +47,34 @@ fn main {
   println("  -> Payload Compression Rate: \{bw.payload_saving_pct}%")
   println("  -> Total Wire Bandwidth Cut: \{bw.wire_saving_pct}%")
 
-  // 3. Noisy UART Stream Stress Benchmark across 3 noise levels
-  println("\n[3/4] FrameParser Noisy UART & Fragmentation Stress Benchmark:")
+  // 3. MAVLink v1 vs MAVLink v2 Wire Efficiency Comparison
+  let v1v2 = @mavlink.evaluate_v1_vs_v2_efficiency()
+  println(
+    "\n[3/6] MAVLink v1 (6B Header, Untrimmed) vs MAVLink v2 (10B Header, Zero-Trimmed) (\{v1v2.total_frames} Frames):",
+  )
+  println("  -> MAVLink v1 Total Wire   : \{v1v2.v1_total_wire_bytes} B")
+  println("  -> MAVLink v2 Total Wire   : \{v1v2.v2_total_wire_bytes} B")
+  println(
+    "  -> Net v2 Wire Advantage   : -\{v1v2.net_v2_wire_saved_bytes} B (\{v1v2.v2_vs_v1_reduction_pct}% smaller than v1 despite +4B header)",
+  )
+
+  // 4. FIPS 180-4 SHA-256 Packet Signing & Anti-Replay Security Audit
+  let sec = @mavlink.evaluate_signing_security_audit()
+  println(
+    "\n[4/6] FIPS 180-4 SHA-256 Packet Signing & Anti-Replay Security Audit:",
+  )
+  println(
+    "  -> Valid Signed Frames     : \{sec.valid_signed_accepted}/\{sec.valid_signed_transmitted} accepted (100%)",
+  )
+  println(
+    "  -> Adversarial Attacks     : \{sec.attack_frames_rejected}/\{sec.attack_frames_injected} rejected (15 replay, 15 rollback, 10 rogue-key, 10 tag-tamper)",
+  )
+  println(
+    "  -> Wire Footprint (100 msg): \{sec.unsigned_wire_bytes} B unsigned -> \{sec.signed_wire_bytes} B signed (+\{sec.signing_overhead_pct}%)",
+  )
+
+  // 5. Noisy UART Stream Stress Benchmark across 3 noise levels
+  println("\n[5/6] FrameParser Noisy UART & Fragmentation Stress Benchmark:")
   let profiles : Array[(String, Int32, Int32, Int32)] = [
     ("Low Noise (5B noise/frame, 7B chunks)", 200, 5, 7),
     ("Medium Noise (16B noise/frame, 3B chunks)", 200, 16, 3),
@@ -62,7 +88,7 @@ fn main {
     )
   }
 
-  // 4. Multi-file <include> Dialect Resolution Audit
+  // 6. Multi-file <include> Dialect Resolution Audit
   let custom_ardupilot_overlay =
     #|<?xml version="1.0"?>
     #|<mavlink>
@@ -104,7 +130,7 @@ fn main {
   match merged_res {
     Ok(merged) =>
       println(
-        "\n[4/4] Multi-File <include> Resolution: merged minimal.xml + ardupilot_overlay.xml -> \{merged.enums.length()} enums, \{merged.messages.length()} messages (DEVICE_OP_READ #11000 CRC_EXTRA=\{merged.messages[1].crc_extra.to_int()})",
+        "\n[6/6] Multi-File <include> Resolution: merged minimal.xml + ardupilot_overlay.xml -> \{merged.enums.length()} enums, \{merged.messages.length()} messages (DEVICE_OP_READ #11000 CRC_EXTRA=\{merged.messages[1].crc_extra.to_int()})",
       )
     Err(e) => println("Merge failed: \{e.to_repr()}")
   }

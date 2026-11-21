@@ -491,7 +491,12 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     sb.write_string(
       "  let reader_ = PayloadReader::new(payload_, zero_extend=v2)\n",
     )
+    let mut in_decode_ext = false
     for wf in msg.wire_ordered_fields {
+      if wf.is_extension && !in_decode_ext {
+        in_decode_ext = true
+        sb.write_string("  reader_.zero_extend = true\n")
+      }
       let fname = sanitize_field_name(wf.name)
       match wf.parsed_type {
         Scalar(prim, _) => {

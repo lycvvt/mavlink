@@ -28,7 +28,7 @@ jobs:
           moon fmt --check
           moon check
 
-      - name: Run 64 Unit, Golden Vector, Microservice & Fuzz Tests
+      - name: Run 76 Unit, Golden Vector, Microservice & Fuzz Tests
         run: |
           moon test
 

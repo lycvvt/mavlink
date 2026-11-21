@@ -1725,6 +1725,7 @@ pub fn GpsRawInt::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let alt_ellipsoid = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -1879,6 +1880,7 @@ pub fn ScaledImu::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let temperature = match reader_.read_int16() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -2010,6 +2012,7 @@ pub fn RawImu::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let id = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -2111,6 +2114,7 @@ pub fn ScaledPressure::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let temperature_press_diff = match reader_.read_int16() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -2323,6 +2327,7 @@ pub fn AttitudeQuaternion::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let repr_offset_q = FixedArray::make(4, (0.0 : Float))
   for idx_ = 0; idx_ < 4; idx_ = idx_ + 1 {
     match reader_.read_float() {
@@ -2800,6 +2805,7 @@ pub fn ServoOutputRaw::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let servo9_raw = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -2925,6 +2931,7 @@ pub fn MissionRequest::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -3065,6 +3072,7 @@ pub fn MissionCurrent::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let total = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -3145,6 +3153,7 @@ pub fn MissionRequestList::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -3225,6 +3234,7 @@ pub fn MissionCount::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -3301,6 +3311,7 @@ pub fn MissionClearAll::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -3439,6 +3450,7 @@ pub fn MissionAck::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -3521,6 +3533,7 @@ pub fn MissionRequestInt::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -3823,6 +3836,7 @@ pub fn ManualControl::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let buttons2 = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -3979,6 +3993,7 @@ pub fn MissionItemInt::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -4432,6 +4447,7 @@ pub fn CommandAck::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let progress = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -4718,6 +4734,7 @@ pub fn Timesync::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -4843,6 +4860,7 @@ pub fn DistanceSensor::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let horizontal_fov = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -5010,6 +5028,7 @@ pub fn BatteryStatus::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let time_remaining = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -5207,6 +5226,7 @@ pub fn AutopilotVersion::decode_payload(
       Err(e) => return Err(e)
     }
   }
+  reader_.zero_extend = true
   let uid2 = FixedArray::make(18, b'\x00')
   for idx_ = 0; idx_ < 18; idx_ = idx_ + 1 {
     match reader_.read_uint8() {
@@ -5361,6 +5381,7 @@ pub fn Statustext::decode_payload(
     Ok(v) => v
     Err(e) => return Err(e)
   }
+  reader_.zero_extend = true
   let id = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)

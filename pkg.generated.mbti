@@ -40,6 +40,10 @@ pub fn enum_entry_variant_name(String, String) -> String
 
 pub fn evaluate_noisy_stream_recovery(Int32, Int32, Int32) -> NoisyStreamStressReport
 
+pub fn evaluate_signing_security_audit() -> SigningSecurityAuditReport
+
+pub fn evaluate_v1_vs_v2_efficiency() -> ProtocolComparisonReport
+
 pub fn evaluate_zero_trimming_bandwidth() -> ZeroTrimmingBandwidthReport
 
 pub fn field_moonbit_type(MavFieldType) -> String
@@ -1333,7 +1337,7 @@ pub fn ParseStreamEvent::to_repr(Self) -> @debug.Repr
 pub(all) struct PayloadReader {
   data : Bytes
   mut pos : Int32
-  zero_extend : Bool
+  mut zero_extend : Bool
 } derive(Eq, @debug.Debug)
 pub fn PayloadReader::equal(Self, Self) -> Bool
 pub fn PayloadReader::new(Bytes, zero_extend? : Bool) -> Self
@@ -1391,6 +1395,17 @@ pub fn Ping::max_payload_len() -> Int32
 pub fn Ping::msg_id() -> UInt32
 pub fn Ping::not_equal(Self, Self) -> Bool
 pub fn Ping::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ProtocolComparisonReport {
+  total_frames : Int32
+  v1_total_wire_bytes : Int32
+  v2_total_wire_bytes : Int32
+  net_v2_wire_saved_bytes : Int32
+  v2_vs_v1_reduction_pct : Double
+} derive(Eq, @debug.Debug)
+pub fn ProtocolComparisonReport::equal(Self, Self) -> Bool
+pub fn ProtocolComparisonReport::not_equal(Self, Self) -> Bool
+pub fn ProtocolComparisonReport::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProtocolVersion {
   V1
@@ -1597,6 +1612,19 @@ pub fn SigningContext::not_equal(Self, Self) -> Bool
 pub fn SigningContext::sign_frame_bytes(Self, Bytes) -> MavSignature
 pub fn SigningContext::to_repr(Self) -> @debug.Repr
 pub fn SigningContext::verify_frame_signature(Self, Bytes, MavSignature, enforce_replay_protection? : Bool) -> Result[Unit, MavError]
+
+pub(all) struct SigningSecurityAuditReport {
+  valid_signed_transmitted : Int32
+  valid_signed_accepted : Int32
+  attack_frames_injected : Int32
+  attack_frames_rejected : Int32
+  unsigned_wire_bytes : Int32
+  signed_wire_bytes : Int32
+  signing_overhead_pct : Double
+} derive(Eq, @debug.Debug)
+pub fn SigningSecurityAuditReport::equal(Self, Self) -> Bool
+pub fn SigningSecurityAuditReport::not_equal(Self, Self) -> Bool
+pub fn SigningSecurityAuditReport::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Statustext {
   severity : Byte

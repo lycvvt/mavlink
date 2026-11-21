@@ -1,4 +1,4 @@
-MoonBit MAVLink v2 Protocol Library & XML Code Generator (lycvvt/mavlink)
+MoonBit MAVLink v2 Protocol Library, Microservices & XML Code Generator (lycvvt/mavlink)
 Copyright 2026 lycvvt
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,22 +11,28 @@ You may obtain a copy of the License at
 Sources, Protocol Specifications, and Third-Party Notices
 ================================================================================
 
-1. MAVLink Wire Protocol Specification (v1 & v2)
-   - Source: https://mavlink.io/en/guide/serialization.html
-   - Packet Signing Specification: https://mavlink.io/en/guide/message_signing.html
-   - CRC_EXTRA Calculation Specification: https://mavlink.io/en/guide/crc.html
-   - Relationship: This library is a clean-room native MoonBit implementation of
-     the MAVLink v2 and v1 binary wire framing, X.25 CRC-16/MCRF4XX checksum,
-     payload trailing-zero truncation, packet signing (SHA-256), and XML schema
-     code generator.
+1. MAVLink Wire Protocol & Microservices Specifications (v1 & v2)
+   - Wire Serialization & Field Reordering: https://mavlink.io/en/guide/serialization.html
+   - Packet Signing (SHA-256 13-Byte Signature): https://mavlink.io/en/guide/message_signing.html
+   - X.25 CRC-16/MCRF4XX & CRC_EXTRA Seed: https://mavlink.io/en/guide/crc.html
+   - Microservices (Heartbeat, Parameter, Mission, Command, Timesync): https://mavlink.io/en/services/
+   - Relationship: This library is a clean-room native MoonBit implementation
+     (100% pure MoonBit, Zero FFI) of the MAVLink v2 and v1 binary wire framing,
+     ITU-T X.25 CRC-16/MCRF4XX checksum, payload trailing-zero truncation,
+     FIPS 180-4 SHA-256 packet signing, stateful microservice state machines,
+     and recursive multi-file `<include>` XML schema code generator.
 
 2. Official MAVLink XML Message Definitions (`minimal.xml`, `common.xml`)
    - Upstream Repository: https://github.com/mavlink/mavlink
+   - Upstream Reference C Library: https://github.com/mavlink/c_library_v2
    - Upstream Copyright: Copyright (c) 2009-2026 Lorenz Meier and MAVLink Contributors
-   - Upstream License: MIT License (https://opensource.org/licenses/MIT)
-   - Usage: Standard XML message definitions (`HEARTBEAT`, `SYS_STATUS`,
-     `SYSTEM_TIME`, `PING`, `PARAM_REQUEST_READ`, `PARAM_VALUE`, `GPS_RAW_INT`,
-     `ATTITUDE`, `GLOBAL_POSITION_INT`, `RC_CHANNELS_RAW`, `MISSION_ITEM_INT`,
-     `COMMAND_LONG`, `COMMAND_ACK`, `STATUSTEXT`) and enum definitions are used
-     as input schemas for the MoonBit code generator and protocol conformance
-     test vectors.
+   - Upstream License: MIT License / CC0-1.0 (https://opensource.org/licenses/MIT)
+   - Usage: Official XML message definitions (45 standard flight messages and
+     18 standard enums from `minimal.xml` and `common.xml`) and their reference
+     `CRC_EXTRA` seed constants are embedded in `xml_catalog.mbt` and
+     `benchmark.mbt` as input schemas for self-hosted MoonBit code generation
+     (`standard_dialect.mbt`) and golden wire vector conformance verification.
+
+3. Cryptographic & Checksum Standard Test Vectors
+   - NIST FIPS PUB 180-4 (Secure Hash Standard, SHA-256 single-block and multi-block vectors)
+   - ITU-T Recommendation X.25 / ISO/IEC 13239 (`CRC-16/MCRF4XX` check value `0x906E` for `"123456789"`)

@@ -6,7 +6,7 @@
 [![CI](https://github.com/lycvvt/mavlink/actions/workflows/ci.yml/badge.svg)](https://github.com/lycvvt/mavlink/actions)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Language](https://img.shields.io/badge/Language-MoonBit-purple.svg)](https://www.moonbitlang.com/)
-[![Tests](https://img.shields.io/badge/Tests-64%2F64%20passed-success.svg)](mavlink_wbtest.mbt)
+[![Tests](https://img.shields.io/badge/Tests-76%2F76%20passed-success.svg)](mavlink_wbtest.mbt)
 
 ---
 
@@ -84,7 +84,7 @@ moon add lycvvt/mavlink
 ```
 
 ### 运行测试
-执行全量 64 项白盒、黑盒、黄金向量、微服务状态机与随机流 Fuzz 测试：
+执行全量 76 项白盒、黑盒、黄金向量、微服务状态机与随机流 Fuzz 测试：
 ```bash
 moon test
 ```
@@ -97,7 +97,7 @@ moon run cmd/main
 # 2. 运行官方 XML -> MoonBit 自举代码生成器 CLI
 moon run cmd/codegen
 
-# 3. 运行 45 条官方消息黄金向量核验、v2 零截断带宽基准与强噪声恢复压测 CLI
+# 3. 运行 45 条官方消息黄金向量核验、v1/v2 带宽基准、SHA-256 安全审计与强噪声恢复压测 CLI
 moon run cmd/benchmark
 ```
 
@@ -114,6 +114,76 @@ moon run examples/xml_codegen_custom
 
 # 示例 4: 五大 MAVLink v2 微服务（Heartbeat / Parameter / Command / Timesync）闭环联调仿真
 moon run examples/microservices_closed_loop
+```
+
+### 代码使用示例
+
+#### 1. MAVLink v2 签名帧编码与串口流式抗噪解析 (`FrameParser`)
+```moonbit
+// 构造 32 字节共享密钥 SHA-256 签名上下文
+let signer = @mavlink.SigningContext::new(
+  b"0123456789abcdef0123456789abcdef",
+  link_id=b'\x01',
+  initial_timestamp=100_000UL,
+).unwrap()
+
+let hb : @mavlink.Heartbeat = {
+  custom_mode: 0x00040000U,
+  mav_type: @mavlink.MavType::Quadrotor.to_uint().to_byte(),
+  autopilot: @mavlink.MavAutopilot::Px4.to_uint().to_byte(),
+  base_mode: b'\xd1',
+  system_status: @mavlink.MavState::Active.to_uint().to_byte(),
+  mavlink_version: b'\x03',
+}
+
+let (wire_bytes, _) = @mavlink.MavMessage::MsgHeartbeat(hb)
+  .encode_to_frame(seq=b'\x01', sysid=b'\x01', compid=b'\x01', signing=Some(signer))
+  .unwrap()
+
+// 接收端流式解析并还原强类型消息
+let parser = @mavlink.FrameParser::new()
+for ev in parser.push_bytes(wire_bytes, @mavlink.lookup_message_crc_extra) {
+  match ev {
+    @mavlink.ParseStreamEvent::FrameDecoded(frame) => {
+      let msg = @mavlink.MavMessage::decode_from_frame(frame).unwrap()
+      println("Decoded message: \{msg.msg_name()} (#\{msg.msg_id()})")
+    }
+    @mavlink.ParseStreamEvent::FrameError(err) => println("Error: \{err.to_repr()}")
+  }
+}
+```
+
+#### 2. 高阶微服务状态机调用 (`ParameterClient` / `CommandClient` / `TimesyncEstimator`)
+```moonbit
+// (a) 参数同步客户端：发起全量参数列表同步并在超时时自动请求缺失索引
+let param_cli = @mavlink.ParameterClient::new(b'\x01', b'\x01', timeout_ms=500UL)
+let req_list_msg = param_cli.start_list_sync(1000UL)
+
+// (b) 控制指令客户端：超时重传自动递增 confirmation 计数器 (0 -> 1 -> 2...)
+let cmd_cli = @mavlink.CommandClient::new(b'\x01', b'\x01', timeout_ms=500UL)
+let arm_msg = cmd_cli.send_command_long(
+  @mavlink.MavCmd::ComponentArmDisarm.to_uint(),
+  2000UL,
+  param1=(1.0 : Float),
+)
+
+// (c) 双向 TIMESYNC 时钟偏移与 RTT 估计器
+let ts_est = @mavlink.TimesyncEstimator::new()
+let probe_msg = @mavlink.TimesyncEstimator::create_probe(1_000_000_000L)
+```
+
+#### 3. 多文件 `<include>` 官方 XML 解析与 MoonBit 代码自动生成
+```moonbit
+let (merged_schema, moonbit_code) = @mavlink.generate_moonbit_from_xml_with_includes(
+  "custom_dialect.xml",
+  fn(file_name) {
+    if file_name == "custom_dialect.xml" {
+      Some(my_custom_xml_string) // 内部可通过 <include>minimal.xml</include> 继承基础方言
+    } else {
+      @mavlink.builtin_xml_resolver(file_name)
+    }
+  },
+).unwrap()
 ```
 
 ---
@@ -138,19 +208,20 @@ moon run examples/microservices_closed_loop
 
 ## 协议验证与实测基准汇总
 
-本项目建立 64 项对齐官方 MAVLink v2 规范与 NIST 密码学标准的自动化测试套件（[`mavlink_wbtest.mbt`](mavlink_wbtest.mbt) 与 [`mavlink_test.mbt`](mavlink_test.mbt)）：
+本项目建立 76 项对齐官方 MAVLink v2 规范与 NIST 密码学标准的自动化测试套件（[`mavlink_wbtest.mbt`](mavlink_wbtest.mbt) 65 项白盒测试与 [`mavlink_test.mbt`](mavlink_test.mbt) 11 项黑盒测试）：
 
 | 编号 | 测试与基准模块 | 验证基准与技术点 | 实测验证结果 | 判定 |
 | :---: | :--- | :--- | :---: | :---: |
-| **1** | **ITU-T X.25 CRC 累加器** | 标准 ASCII 向量 `"123456789"` 校验值与分步累积一致性 | 精确等于 `0x906E` | PASS |
+| **1** | **ITU-T X.25 CRC 累加器** | 标准 ASCII 向量 `"123456789"` 校验值与分片累积等价性 | 精确等于 `0x906E` | PASS |
 | **2** | **45 条消息 `CRC_EXTRA` 黄金向量** | 对照官方 C `c_library_v2` 核验全部 45 条消息的 `CRC_EXTRA` 与 `base/max_len` | **45 / 45 (100% 吻合)** | PASS |
-| **3** | **小端序极值与定长数组边界** | 有符号/无符号整数极值、IEEE-754 `-0.0`、`FixedArray` 短数组补零与超长截断 | 双向无损闭环 | PASS |
+| **3** | **小端序极值与定长数组边界** | 有符号/无符号整数极值、IEEE-754 `-0.0`、`char[N]` 嵌零截断、`FixedArray` 补零/截断 | 双向无损闭环 | PASS |
 | **4** | **v2 尾部零截断带宽收益基准** | 200 帧典型 PX4 混合遥测流（未压缩载荷 `7,580 B` vs 零截断后 `5,870 B`） | **载荷压缩 22.56%，整帧节省 17.13%** | PASS |
-| **5** | **FIPS 180-4 SHA-256 与 13B 签名** | NIST 单块/多块摘要向量、32B 密钥帧签名、篡改拒绝与 48-bit 时间戳防重放 | 异常拦截率 100% | PASS |
-| **6** | **`FrameParser` 强噪声与极端分片** | 200 帧遥测注入 `32B/帧` 随机噪声（共 `6,400B` 噪声）并以 `1B` 单字节逐粒推入 | **200 / 200 帧恢复，14/14 丢包捕获** | PASS |
-| **7** | **1,024B 伪随机含假同步字 Fuzz** | 含伪造 `0xFD`/`0xFE` 的 1,024B 随机损坏字节流 + 签名帧恢复 | 零崩溃，100% 还原签名帧 | PASS |
-| **8** | **五大 MAVLink v2 微服务状态机** | Heartbeat 超时、Parameter 丢包补齐、Mission 上传/下载/清空、Command 递增确认与 Timesync | 状态转移与超时重传 100% 准确 | PASS |
-| **9** | **多文件 `<include>` XML 代码生成** | DAG 拓扑合并、菱形依赖去重、循环包含拦截、`255B/256B` 载荷上限边界 | 自举编译 `0 warnings` | PASS |
+| **5** | **v1 vs v2 线上帧带宽交叉对标** | 100 帧飞控控制与状态批次（v1 固定长 `4,125 B` vs v2 零截断 `3,580 B`） | **v2 比 v1 净省 545 B (-13.21%)** | PASS |
+| **6** | **SHA-256 签名与 50 次攻击审计** | 100 帧合法签名 + 50 帧对抗攻击（15 重放、15 回退、10 伪造密钥、10 标签篡改） | **100/100 放行，50/50 攻击拦截** | PASS |
+| **7** | **`FrameParser` 强噪声与极端分片** | 200 帧遥测注入 `32B/帧` 随机噪声（共 `6,400B` 噪声）并以 `1B` 单字节逐粒推入 | **200 / 200 帧恢复，14/14 丢包捕获** | PASS |
+| **8** | **1,024B 伪随机含假同步字 Fuzz** | 含伪造 `0xFD`/`0xFE` 的 1,024B 随机损坏字节流 + 签名帧恢复 | 零崩溃，100% 还原签名帧 | PASS |
+| **9** | **五大 MAVLink v2 微服务状态机** | Heartbeat 多机隔离、Parameter 丢包补齐、Mission 上传/下载/清空、Command 递增确认与 Timesync | 状态转移与超时重传 100% 准确 | PASS |
+| **10** | **多文件 `<include>` XML 代码生成** | DAG 拓扑合并、菱形依赖去重、循环包含拦截、`255B/256B` 载荷上限边界 | 自举编译 `0 warnings` | PASS |
 
 ---
 
@@ -158,7 +229,7 @@ moon run examples/microservices_closed_loop
 
 ```text
 mavlink/
-├── moon.mod                            # MoonBit 模块配置清单 (lycvvt/mavlink v0.2.0)
+├── moon.mod                            # MoonBit 模块配置清单 (lycvvt/mavlink v0.2.1)
 ├── moon.pkg                            # 根包导入配置
 ├── LICENSE                             # Apache-2.0 许可证
 ├── NOTICE                              # 第三方知识来源与官方 MAVLink XML Schema 声明
@@ -174,9 +245,9 @@ mavlink/
 ├── xml_catalog.mbt                     # 官方 minimal.xml + common.xml (18 枚举 / 45 消息) 定义
 ├── standard_dialect.mbt                # 由代码生成器自举产出的 18 个枚举与 45 条消息实现
 ├── microservices.mbt                   # 五大 MAVLink v2 微服务状态机 (Heartbeat/Param/Mission/Cmd/Timesync)
-├── benchmark.mbt                       # 45 条消息黄金向量核验、v2 零截断带宽基准与强噪声分片压测引擎
-├── mavlink_wbtest.mbt                  # 56 项白盒单元、边界、微服务与 Fuzz 测试
-├── mavlink_test.mbt                    # 8 项黑盒集成测试
+├── benchmark.mbt                       # 45 条消息黄金向量核验、v1/v2 带宽基准与安全/抗噪压测引擎
+├── mavlink_wbtest.mbt                  # 65 项白盒单元、边界、微服务与 Fuzz 测试
+├── mavlink_test.mbt                    # 11 项黑盒集成测试
 ├── cmd/
 │   ├── main/                           # 协议栈闭环验证与综合演示 CLI
 │   ├── codegen/                        # 官方 XML -> MoonBit 命令行代码生成器

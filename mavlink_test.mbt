@@ -395,3 +395,94 @@ test "blackbox: generate_moonbit_from_xml_with_includes resolves builtin_xml_res
   assert_true(code.contains("pub(all) struct Heartbeat"))
   assert_true(code.contains("pub(all) struct PayloadWinchStatus"))
 }
+
+///|
+test "blackbox: MAVLink v1 vs v2 wire encoding and extension truncation boundary" {
+  let gps : @mavlink.GpsRawInt = {
+    time_usec: 1730800000000000UL,
+    lat: 225430960,
+    lon: 1140578650,
+    alt: 50000,
+    eph: 70U,
+    epv: 90U,
+    vel: 200U,
+    cog: 18000U,
+    fix_type: b'\x06',
+    satellites_visible: b'\x12',
+    alt_ellipsoid: 48500,
+    h_acc: 15U,
+    v_acc: 22U,
+    vel_acc: 8U,
+    hdg_acc: 50U,
+    yaw: 18000U,
+  }
+  // v1 encoding strips extension fields (30-byte base payload + 8-byte v1 overhead = 38 bytes)
+  let (v1_wire, v1_frame) = match
+    @mavlink.MavMessage::MsgGpsRawInt(gps).encode_to_frame(
+      seq=b'\x05',
+      sysid=b'\x01',
+      compid=b'\x01',
+      version=@mavlink.ProtocolVersion::V1,
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(v1_wire.length(), 38)
+  assert_eq(v1_frame.payload.length(), 30)
+
+  // v1 decoding zero-extends extension fields
+  let (decoded_v1_frame, _) = match
+    @mavlink.decode_frame(v1_wire, @mavlink.lookup_message_crc_extra) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  match @mavlink.MavMessage::decode_from_frame(decoded_v1_frame) {
+    Ok(@mavlink.MavMessage::MsgGpsRawInt(g)) => {
+      assert_eq(g.lat, 225430960)
+      assert_eq(g.h_acc, 0U)
+      assert_eq(g.yaw, 0U)
+    }
+    _ => fail("Expected MsgGpsRawInt")
+  }
+}
+
+///|
+test "blackbox: end-to-end ParameterServer and ParameterClient over encoded MAVLink v2 wire frames" {
+  let srv = @mavlink.ParameterServer::new(b'\x01', b'\x01', [
+    ("COM_DISARM_LAND", (2.0 : Float), b'\x09'),
+  ])
+  let cli = @mavlink.ParameterClient::new(b'\x01', b'\x01')
+  let req_msg = cli.start_list_sync(100UL)
+  let (req_wire, _) = match
+    req_msg.encode_to_frame(seq=b'\x01', sysid=b'\xff', compid=b'\xbe') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let (rx_frame, _) = match
+    @mavlink.decode_frame(req_wire, @mavlink.lookup_message_crc_extra) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let decoded_req = match @mavlink.MavMessage::decode_from_frame(rx_frame) {
+    Ok(m) => m
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let srv_out = srv.handle_message(decoded_req)
+  assert_eq(srv_out.length(), 1)
+  match srv_out[0] {
+    @mavlink.MavMessage::MsgParamValue(pv) => cli.on_param_value(pv, 120UL)
+    _ => fail("Expected MsgParamValue")
+  }
+  assert_eq(cli.state, @mavlink.ParamSyncState::Synced)
+}
+
+///|
+test "blackbox: public benchmark evaluators return deterministic metrics" {
+  let v1v2 = @mavlink.evaluate_v1_vs_v2_efficiency()
+  assert_eq(v1v2.total_frames, 100)
+  assert_true(v1v2.v2_total_wire_bytes < v1v2.v1_total_wire_bytes)
+
+  let sec = @mavlink.evaluate_signing_security_audit()
+  assert_eq(sec.valid_signed_accepted, 100)
+  assert_eq(sec.attack_frames_rejected, 50)
+}

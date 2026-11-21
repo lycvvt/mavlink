@@ -181,7 +181,7 @@ pub fn truncate_trailing_zeros(payload : Bytes) -> Bytes {
 pub(all) struct PayloadReader {
   data : Bytes
   mut pos : Int32
-  zero_extend : Bool
+  mut zero_extend : Bool
 } derive(Eq, Debug)
 
 ///|

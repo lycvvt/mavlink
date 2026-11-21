@@ -653,3 +653,404 @@ pub fn evaluate_noisy_stream_recovery(
     detected_dropped_packets: parser.packets_dropped.reinterpret_as_int(),
   }
 }
+
+///|
+/// Quantitative wire comparison between MAVLink v1 (`0xFE`, 6B header, untrimmed base payload)
+/// and MAVLink v2 (`0xFD`, 10B header, zero-trimmed payload).
+pub(all) struct ProtocolComparisonReport {
+  total_frames : Int32
+  v1_total_wire_bytes : Int32
+  v2_total_wire_bytes : Int32
+  net_v2_wire_saved_bytes : Int32
+  v2_vs_v1_reduction_pct : Double
+} derive(Eq, Debug)
+
+///|
+pub extend ProtocolComparisonReport with Eq::{not_equal, equal}
+
+///|
+pub extend ProtocolComparisonReport with @debug.Debug::{to_repr}
+
+///|
+/// Compare MAVLink v1 vs MAVLink v2 wire footprint across a 100-frame flight control batch
+/// (showing that v2 trailing-zero truncation overcomes the +4B v2 header overhead).
+pub fn evaluate_v1_vs_v2_efficiency() -> ProtocolComparisonReport {
+  let rc8 = MsgRcChannels({
+    time_boot_ms: 50000U,
+    chancount: b'\x08',
+    chan1_raw: 1500U,
+    chan2_raw: 1500U,
+    chan3_raw: 1500U,
+    chan4_raw: 1500U,
+    chan5_raw: 1900U,
+    chan6_raw: 1100U,
+    chan7_raw: 1500U,
+    chan8_raw: 1500U,
+    chan9_raw: 0U,
+    chan10_raw: 0U,
+    chan11_raw: 0U,
+    chan12_raw: 0U,
+    chan13_raw: 0U,
+    chan14_raw: 0U,
+    chan15_raw: 0U,
+    chan16_raw: 0U,
+    chan17_raw: 0U,
+    chan18_raw: 0U,
+    rssi: b'\x00',
+  })
+  let servo4 = MsgServoOutputRaw({
+    time_usec: 50000000U,
+    port: b'\x00',
+    servo1_raw: 1520U,
+    servo2_raw: 1480U,
+    servo3_raw: 1510U,
+    servo4_raw: 1490U,
+    servo5_raw: 0U,
+    servo6_raw: 0U,
+    servo7_raw: 0U,
+    servo8_raw: 0U,
+    servo9_raw: 0U,
+    servo10_raw: 0U,
+    servo11_raw: 0U,
+    servo12_raw: 0U,
+    servo13_raw: 0U,
+    servo14_raw: 0U,
+    servo15_raw: 0U,
+    servo16_raw: 0U,
+  })
+  let hover_att = MsgAttitude({
+    time_boot_ms: 50000U,
+    roll: (0.01 : Float),
+    pitch: (-0.01 : Float),
+    yaw: (1.57 : Float),
+    rollspeed: (0.0 : Float),
+    pitchspeed: (0.0 : Float),
+    yawspeed: (0.0 : Float),
+  })
+  let alert_txt = MsgStatustext({
+    severity: b'\x04',
+    text: "RTL TRIGGERED",
+    id: 0U,
+    chunk_seq: b'\x00',
+  })
+  let arm_cmd = MsgCommandLong({
+    param1: (1.0 : Float),
+    param2: (0.0 : Float),
+    param3: (0.0 : Float),
+    param4: (0.0 : Float),
+    param5: (0.0 : Float),
+    param6: (0.0 : Float),
+    param7: (0.0 : Float),
+    command: 400U,
+    target_system: b'\x01',
+    target_component: b'\x00',
+    confirmation: b'\x00',
+  })
+
+  let batch : Array[(MavMessage, Int32)] = [
+    (rc8, 30),
+    (servo4, 25),
+    (hover_att, 25),
+    (alert_txt, 10),
+    (arm_cmd, 10),
+  ]
+
+  let mut total_frames = 0
+  let mut v1_total = 0
+  let mut v2_total = 0
+
+  for pair in batch {
+    let (msg, count) = pair
+    let (v1_wire, _) = match
+      msg.encode_to_frame(
+        seq=b'\x01',
+        sysid=b'\x01',
+        compid=b'\x01',
+        version=V1,
+      ) {
+      Ok(r) => r
+      Err(_) =>
+        return {
+          total_frames: 0,
+          v1_total_wire_bytes: 0,
+          v2_total_wire_bytes: 0,
+          net_v2_wire_saved_bytes: 0,
+          v2_vs_v1_reduction_pct: 0.0,
+        }
+    }
+    let (v2_wire, _) = match
+      msg.encode_to_frame(
+        seq=b'\x01',
+        sysid=b'\x01',
+        compid=b'\x01',
+        version=V2,
+      ) {
+      Ok(r) => r
+      Err(_) =>
+        return {
+          total_frames: 0,
+          v1_total_wire_bytes: 0,
+          v2_total_wire_bytes: 0,
+          net_v2_wire_saved_bytes: 0,
+          v2_vs_v1_reduction_pct: 0.0,
+        }
+    }
+    total_frames = total_frames + count
+    v1_total = v1_total + v1_wire.length() * count
+    v2_total = v2_total + v2_wire.length() * count
+  }
+
+  let saved = v1_total - v2_total
+  let pct = saved.to_double() * 100.0 / v1_total.to_double()
+  {
+    total_frames,
+    v1_total_wire_bytes: v1_total,
+    v2_total_wire_bytes: v2_total,
+    net_v2_wire_saved_bytes: saved,
+    v2_vs_v1_reduction_pct: pct,
+  }
+}
+
+///|
+/// Cryptographic packet signing and anti-replay attack audit report.
+pub(all) struct SigningSecurityAuditReport {
+  valid_signed_transmitted : Int32
+  valid_signed_accepted : Int32
+  attack_frames_injected : Int32
+  attack_frames_rejected : Int32
+  unsigned_wire_bytes : Int32
+  signed_wire_bytes : Int32
+  signing_overhead_pct : Double
+} derive(Eq, Debug)
+
+///|
+pub extend SigningSecurityAuditReport with Eq::{not_equal, equal}
+
+///|
+pub extend SigningSecurityAuditReport with @debug.Debug::{to_repr}
+
+///|
+/// Run a 100-frame FIPS 180-4 SHA-256 signing session and inject 50 adversarial attack frames
+/// (15 replay attacks, 15 timestamp rollback attacks, 10 wrong-key attacks, 10 payload-tamper attacks).
+pub fn evaluate_signing_security_audit() -> SigningSecurityAuditReport {
+  let valid_key = b"px4-mavlink-v2-signing-key-32byt"
+  let attacker_key = b"attacker-rogue-signing-key-32byt"
+  let tx_ctx = match
+    SigningContext::new(valid_key, link_id=b'\x01', initial_timestamp=100_000UL) {
+    Ok(c) => c
+    Err(_) =>
+      return {
+        valid_signed_transmitted: 0,
+        valid_signed_accepted: 0,
+        attack_frames_injected: 0,
+        attack_frames_rejected: 0,
+        unsigned_wire_bytes: 0,
+        signed_wire_bytes: 0,
+        signing_overhead_pct: 0.0,
+      }
+  }
+  let rx_ctx = match
+    SigningContext::new(valid_key, link_id=b'\x01', initial_timestamp=100_000UL) {
+    Ok(c) => c
+    Err(_) =>
+      return {
+        valid_signed_transmitted: 0,
+        valid_signed_accepted: 0,
+        attack_frames_injected: 0,
+        attack_frames_rejected: 0,
+        unsigned_wire_bytes: 0,
+        signed_wire_bytes: 0,
+        signing_overhead_pct: 0.0,
+      }
+  }
+  let rogue_ctx = match
+    SigningContext::new(
+      attacker_key,
+      link_id=b'\x01',
+      initial_timestamp=999_999UL,
+    ) {
+    Ok(c) => c
+    Err(_) =>
+      return {
+        valid_signed_transmitted: 0,
+        valid_signed_accepted: 0,
+        attack_frames_injected: 0,
+        attack_frames_rejected: 0,
+        unsigned_wire_bytes: 0,
+        signed_wire_bytes: 0,
+        signing_overhead_pct: 0.0,
+      }
+  }
+
+  let mut valid_accepted = 0
+  let mut unsigned_bytes = 0
+  let mut signed_bytes = 0
+  let saved_valid_wires : Array[Bytes] = []
+
+  for i = 0; i < 100; i = i + 1 {
+    let msg : MavMessage = if i % 2 == 0 {
+      MsgHeartbeat({
+        custom_mode: i.reinterpret_as_uint(),
+        mav_type: b'\x02',
+        autopilot: b'\x0c',
+        base_mode: b'\xd1',
+        system_status: b'\x04',
+        mavlink_version: b'\x03',
+      })
+    } else {
+      MsgAttitude({
+        time_boot_ms: (i * 10).reinterpret_as_uint(),
+        roll: (0.02 : Float),
+        pitch: (-0.01 : Float),
+        yaw: (1.57 : Float),
+        rollspeed: (0.0 : Float),
+        pitchspeed: (0.0 : Float),
+        yawspeed: (0.0 : Float),
+      })
+    }
+    match msg.encode_to_frame(seq=i.to_byte(), sysid=b'\x01', compid=b'\x01') {
+      Ok((u_wire, _)) => unsigned_bytes = unsigned_bytes + u_wire.length()
+      Err(_) => ()
+    }
+    match
+      msg.encode_to_frame(
+        seq=i.to_byte(),
+        sysid=b'\x01',
+        compid=b'\x01',
+        signing=Some(tx_ctx),
+      ) {
+      Ok((s_wire, _)) => {
+        signed_bytes = signed_bytes + s_wire.length()
+        saved_valid_wires.push(s_wire)
+        match
+          decode_frame(s_wire, lookup_message_crc_extra, signing=Some(rx_ctx)) {
+          Ok(_) => valid_accepted = valid_accepted + 1
+          Err(_) => ()
+        }
+      }
+      Err(_) => ()
+    }
+  }
+
+  let mut attacks_rejected = 0
+  // 1) 15 exact replay attacks (re-sending previously accepted frames)
+  for i = 0; i < 15; i = i + 1 {
+    if decode_frame(
+        saved_valid_wires[i * 5],
+        lookup_message_crc_extra,
+        signing=Some(rx_ctx),
+      )
+      is Err(SignatureInvalid(_)) {
+      attacks_rejected = attacks_rejected + 1
+    }
+  }
+  // 2) 15 timestamp rollback attacks (valid key, but timestamp < rx_ctx.last_timestamp)
+  let rollback_ctx = match
+    SigningContext::new(valid_key, link_id=b'\x01', initial_timestamp=50_000UL) {
+    Ok(c) => c
+    Err(_) => tx_ctx
+  }
+  for i = 0; i < 15; i = i + 1 {
+    let hb = MsgHeartbeat({
+      custom_mode: i.reinterpret_as_uint(),
+      mav_type: b'\x02',
+      autopilot: b'\x0c',
+      base_mode: b'\xd1',
+      system_status: b'\x04',
+      mavlink_version: b'\x03',
+    })
+    match
+      hb.encode_to_frame(
+        seq=i.to_byte(),
+        sysid=b'\x01',
+        compid=b'\x01',
+        signing=Some(rollback_ctx),
+      ) {
+      Ok((rb_wire, _)) =>
+        if decode_frame(rb_wire, lookup_message_crc_extra, signing=Some(rx_ctx))
+          is Err(SignatureInvalid(_)) {
+          attacks_rejected = attacks_rejected + 1
+        }
+      Err(_) => ()
+    }
+  }
+  // 3) 10 rogue-key attacks (fresh higher timestamp, wrong 32-byte key)
+  for i = 0; i < 10; i = i + 1 {
+    let hb = MsgHeartbeat({
+      custom_mode: i.reinterpret_as_uint(),
+      mav_type: b'\x02',
+      autopilot: b'\x0c',
+      base_mode: b'\xd1',
+      system_status: b'\x04',
+      mavlink_version: b'\x03',
+    })
+    match
+      hb.encode_to_frame(
+        seq=i.to_byte(),
+        sysid=b'\x01',
+        compid=b'\x01',
+        signing=Some(rogue_ctx),
+      ) {
+      Ok((rogue_wire, _)) =>
+        if decode_frame(
+            rogue_wire,
+            lookup_message_crc_extra,
+            signing=Some(rx_ctx),
+          )
+          is Err(SignatureInvalid(_)) {
+          attacks_rejected = attacks_rejected + 1
+        }
+      Err(_) => ()
+    }
+  }
+  // 4) 10 signature-tag tampering attacks (fresh valid signed frame with 1 bit flipped in signature tag)
+  for i = 0; i < 10; i = i + 1 {
+    let hb = MsgHeartbeat({
+      custom_mode: (1000 + i).reinterpret_as_uint(),
+      mav_type: b'\x02',
+      autopilot: b'\x0c',
+      base_mode: b'\xd1',
+      system_status: b'\x04',
+      mavlink_version: b'\x03',
+    })
+    match
+      hb.encode_to_frame(
+        seq=i.to_byte(),
+        sysid=b'\x01',
+        compid=b'\x01',
+        signing=Some(tx_ctx),
+      ) {
+      Ok((fresh_wire, _)) => {
+        let tampered : Array[Byte] = []
+        for b_idx = 0; b_idx < fresh_wire.length(); b_idx = b_idx + 1 {
+          tampered.push(fresh_wire[b_idx])
+        }
+        let last_idx = tampered.length() - 1
+        tampered[last_idx] = (tampered[last_idx].to_int() ^ 0x01).to_byte()
+        if decode_frame(
+            Bytes::from_array(tampered),
+            lookup_message_crc_extra,
+            signing=Some(rx_ctx),
+          )
+          is Err(SignatureInvalid(_)) {
+          attacks_rejected = attacks_rejected + 1
+        }
+      }
+      Err(_) => ()
+    }
+  }
+
+  let overhead_pct = (signed_bytes - unsigned_bytes).to_double() *
+    100.0 /
+    unsigned_bytes.to_double()
+
+  {
+    valid_signed_transmitted: 100,
+    valid_signed_accepted: valid_accepted,
+    attack_frames_injected: 50,
+    attack_frames_rejected: attacks_rejected,
+    unsigned_wire_bytes: unsigned_bytes,
+    signed_wire_bytes: signed_bytes,
+    signing_overhead_pct: overhead_pct,
+  }
+}

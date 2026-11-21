@@ -2030,3 +2030,204 @@ test "fuzz: 1024-byte pseudo-random corrupted stream with false 0xFD/0xFE magic 
     Ok(MsgHeartbeat(hb)),
   )
 }
+
+///|
+test "benchmark: MAVLink v1 vs v2 wire efficiency crossover verification" {
+  let cmp = evaluate_v1_vs_v2_efficiency()
+  assert_eq(cmp.total_frames, 100)
+  assert_eq(cmp.v1_total_wire_bytes, 4125)
+  assert_eq(cmp.v2_total_wire_bytes, 3580)
+  assert_eq(cmp.net_v2_wire_saved_bytes, 545)
+  assert_true(cmp.v2_vs_v1_reduction_pct > 13.0)
+}
+
+///|
+test "benchmark: 100-frame SHA-256 signing and 50-attack anti-replay security audit" {
+  let sec = evaluate_signing_security_audit()
+  assert_eq(sec.valid_signed_transmitted, 100)
+  assert_eq(sec.valid_signed_accepted, 100)
+  assert_eq(sec.attack_frames_injected, 50)
+  assert_eq(sec.attack_frames_rejected, 50)
+  assert_eq(sec.unsigned_wire_bytes, 2450)
+  assert_eq(sec.signed_wire_bytes, 3750)
+  assert_true(sec.signing_overhead_pct > 53.0)
+}
+
+///|
+test "boundary: PayloadReader read_char_array with embedded NUL stops string at NUL while advancing full fixed_len" {
+  let w = PayloadWriter::new(capacity=32)
+  // Write a 16-byte char array containing an embedded NUL followed by garbage bytes, then a uint32 trailer
+  let raw_str_bytes = b"ALT_MAX\x00GARBAGE!"
+  w.write_bytes(raw_str_bytes)
+  w.write_uint32(0x12345678U)
+
+  let r = PayloadReader::new(w.to_bytes(), zero_extend=false)
+  assert_eq(r.read_char_array(16), Ok("ALT_MAX"))
+  assert_eq(r.pos, 16)
+  assert_eq(r.read_uint32(), Ok(0x12345678U))
+}
+
+///|
+test "boundary: X25Crc empty buffer, byte-by-byte, slice, and ASCII accumulation equivalence" {
+  let c_empty = X25Crc::new()
+  c_empty.accumulate_bytes(b"")
+  assert_eq(c_empty.value, 0xFFFFU)
+
+  let c_ascii = X25Crc::new()
+  c_ascii.accumulate_ascii("HEARTBEAT ")
+  let c_bytes = X25Crc::new()
+  c_bytes.accumulate_bytes(b"HEARTBEAT ")
+  let c_slice = X25Crc::new()
+  let padded = b"__HEARTBEAT __"
+  c_slice.accumulate_bytes(padded, start=2, len=10)
+  assert_eq(c_ascii.value, c_bytes.value)
+  assert_eq(c_ascii.value, c_slice.value)
+}
+
+///|
+test "boundary: XML parser auto-increment enum entries, single quotes, and XML entity unescaping" {
+  let xml =
+    #|<?xml version='1.0'?>
+    #|<mavlink>
+    #|  <enums>
+    #|    <enum name='GIMBAL_AXIS'>
+    #|      <description>Axis &lt;0..2&gt; &amp; &quot;roll/pitch/yaw&quot; &apos;test&apos;</description>
+    #|      <entry name='GIMBAL_AXIS_ROLL'/>
+    #|      <entry value='0x10' name='GIMBAL_AXIS_PITCH'/>
+    #|      <entry name='GIMBAL_AXIS_YAW'/>
+    #|    </enum>
+    #|  </enums>
+    #|  <messages>
+    #|    <message id='0x100' name='GIMBAL_REPORT'>
+    #|      <field type='uint8_t' name='axis' enum='GIMBAL_AXIS'>Axis</field>
+    #|    </message>
+    #|  </messages>
+    #|</mavlink>
+  let schema = match parse_dialect_xml(xml) {
+    Ok(s) => s
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(schema.enums.length(), 1)
+  let en = schema.enums[0]
+  assert_eq(en.description, "Axis <0..2> & \"roll/pitch/yaw\" 'test'")
+  assert_eq(en.entries[0].value, 0U)
+  assert_eq(en.entries[1].value, 16U)
+  assert_eq(en.entries[2].value, 17U)
+  assert_eq(schema.messages[0].id, 256U)
+}
+
+///|
+test "boundary: XML parser rejects unclosed comment, unclosed PI, and missing field attributes" {
+  assert_true(
+    parse_dialect_xml("<?xml version=\"1.0\"<mavlink/>")
+    is Err(XmlParseError(_)),
+  )
+  assert_true(
+    parse_dialect_xml("<!-- unclosed comment <mavlink/>")
+    is Err(XmlParseError(_)),
+  )
+  assert_true(
+    parse_dialect_xml(
+      "<mavlink><messages><message id=\"1\" name=\"M\"><field name=\"x\"/></message></messages></mavlink>",
+    )
+    is Err(XmlParseError(_)),
+  )
+  assert_true(
+    parse_dialect_xml(
+      "<mavlink><messages><message id=\"1\" name=\"M\"><field type=\"uint8_t\"/></message></messages></mavlink>",
+    )
+    is Err(XmlParseError(_)),
+  )
+}
+
+///|
+test "boundary: MissionUploadClient transitions to Failed on non-zero MISSION_ACK error codes" {
+  let uploader = MissionUploadClient::new(b'\x01', b'\x01')
+  let wp : MissionItemInt = {
+    param1: (0.0 : Float),
+    param2: (0.0 : Float),
+    param3: (0.0 : Float),
+    param4: (0.0 : Float),
+    x: 0,
+    y: 0,
+    z: (15.0 : Float),
+    seq: 0U,
+    command: 16U,
+    target_system: b'\x01',
+    target_component: b'\x01',
+    frame: b'\x06',
+    current: b'\x01',
+    autocontinue: b'\x01',
+    mission_type: b'\x00',
+  }
+  let _ = uploader.start_upload([wp], 100UL)
+  let _ = uploader.on_message(
+    MsgMissionAck({
+      target_system: b'\xff',
+      target_component: b'\xbe',
+      mav_type: MavMissionResult::MavMissionNoSpace.to_uint().to_byte(),
+      mission_type: b'\x00',
+      opaque_id: 0U,
+    }),
+    150UL,
+  )
+  assert_eq(uploader.state, Failed(MavMissionNoSpace))
+}
+
+///|
+test "boundary: CommandClient ignores COMMAND_ACK for unrelated command IDs" {
+  let cli = CommandClient::new(b'\x01', b'\x01')
+  let _ = cli.send_command_long(400U, 1000UL)
+  // Unrelated COMMAND_ACK for command=512 should be ignored
+  cli.on_command_ack(
+    {
+      command: 512U,
+      result: MavResult::Accepted.to_uint().to_byte(),
+      progress: b'\x00',
+      result_param2: 0,
+      target_system: b'\xff',
+      target_component: b'\xbe',
+    },
+    1050UL,
+  )
+  assert_eq(cli.state, Pending(400U, b'\x00'))
+}
+
+///|
+test "boundary: HeartbeatMonitor multi-vehicle fleet isolation (sysid=1, sysid=2, sysid=255)" {
+  let mon = HeartbeatMonitor::new(timeout_ms=1000UL)
+  let hb1 : Heartbeat = {
+    custom_mode: 1U,
+    mav_type: b'\x02',
+    autopilot: b'\x0c',
+    base_mode: b'\xd1',
+    system_status: b'\x04',
+    mavlink_version: b'\x03',
+  }
+  let hb2 : Heartbeat = { ..hb1, custom_mode: 2U, base_mode: b'\x51', }
+  let (_, f_uav1) = match
+    MsgHeartbeat(hb1).encode_to_frame(
+      seq=b'\x01',
+      sysid=b'\x01',
+      compid=b'\x01',
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let (_, f_uav2) = match
+    MsgHeartbeat(hb2).encode_to_frame(
+      seq=b'\x10',
+      sysid=b'\x02',
+      compid=b'\x01',
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  mon.on_frame(f_uav1, 100UL)
+  mon.on_frame(f_uav2, 800UL)
+
+  // At t=1200ms, UAV1 (last seen 100ms) is timed out, while UAV2 (last seen 800ms) is alive
+  assert_eq(mon.is_node_alive(b'\x01', b'\x01', 1200UL), false)
+  assert_eq(mon.is_node_alive(b'\x02', b'\x01', 1200UL), true)
+  assert_eq(mon.is_node_alive(b'\x99', b'\x01', 1200UL), false)
+}

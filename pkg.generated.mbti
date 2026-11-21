@@ -46,6 +46,8 @@ pub fn evaluate_v1_vs_v2_efficiency() -> ProtocolComparisonReport
 
 pub fn evaluate_zero_trimming_bandwidth() -> ZeroTrimmingBandwidthReport
 
+pub fn extract_message_target(MavMessage) -> (Byte, Byte)?
+
 pub fn field_moonbit_type(MavFieldType) -> String
 
 pub fn generate_moonbit_code(DialectSchema) -> String
@@ -1107,6 +1109,19 @@ pub fn MavResult::not_equal(Self, Self) -> Bool
 pub fn MavResult::to_repr(Self) -> @debug.Repr
 pub fn MavResult::to_uint(Self) -> UInt32
 
+pub(all) struct MavRouter {
+  ports : Array[Int32]
+  routes : Array[RouteEntry]
+  mut unicast_forwarded : Int32
+  mut broadcast_flooded : Int32
+} derive(Eq, @debug.Debug)
+pub fn MavRouter::equal(Self, Self) -> Bool
+pub fn MavRouter::learn_source(Self, Byte, Byte, Int32) -> Unit
+pub fn MavRouter::new(Array[Int32]) -> Self
+pub fn MavRouter::not_equal(Self, Self) -> Bool
+pub fn MavRouter::route_frame(Self, Int32, MavFrame) -> Array[Int32]
+pub fn MavRouter::to_repr(Self) -> @debug.Repr
+
 pub(all) enum MavSensorOrientation {
   MavSensorRotationNone
   MavSensorRotationYaw45
@@ -1956,6 +1971,16 @@ pub fn RcChannelsRaw::max_payload_len() -> Int32
 pub fn RcChannelsRaw::msg_id() -> UInt32
 pub fn RcChannelsRaw::not_equal(Self, Self) -> Bool
 pub fn RcChannelsRaw::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RouteEntry {
+  sysid : Byte
+  compid : Byte
+  mut port_id : Int32
+  mut frames_routed : Int32
+} derive(Eq, @debug.Debug)
+pub fn RouteEntry::equal(Self, Self) -> Bool
+pub fn RouteEntry::not_equal(Self, Self) -> Bool
+pub fn RouteEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ScaledImu {
   time_boot_ms : UInt32

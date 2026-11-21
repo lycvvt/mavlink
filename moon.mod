@@ -1,6 +1,6 @@
 name = "lycvvt/mavlink"
 
-version = "0.1.0"
+version = "0.2.0"
 
 readme = "README.md"
 
@@ -16,10 +16,11 @@ keywords = [
   "px4",
   "ardupilot",
   "codegen",
+  "microservices",
   "protocol",
   "embedded",
 ]
 
 preferred_target = "wasm-gc"
 
-description = "MAVLink v2/v1 wire protocol, streaming parser, packet signing, and official XML-to-MoonBit code generator"
+description = "Pure MoonBit MAVLink v2/v1 wire protocol, SHA-256 packet signing, microservice state machines, and recursive XML-to-MoonBit code generator"

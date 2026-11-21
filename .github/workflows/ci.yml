@@ -28,7 +28,7 @@ jobs:
           moon fmt --check
           moon check
 
-      - name: Run 40 Unit & Blackbox Conformance Tests
+      - name: Run 64 Unit, Golden Vector, Microservice & Fuzz Tests
         run: |
           moon test
 
@@ -36,10 +36,12 @@ jobs:
         run: |
           moon build --target wasm-gc
 
-      - name: Run CLI Suites & All Standalone Examples
+      - name: Run CLI Suites, Benchmarks & All Standalone Examples
         run: |
           moon run cmd/main
           moon run cmd/codegen
+          moon run cmd/benchmark
           moon run examples/px4_telemetry
           moon run examples/gcs_mission_protocol
           moon run examples/xml_codegen_custom
+          moon run examples/microservices_closed_loop

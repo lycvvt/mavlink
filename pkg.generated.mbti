@@ -206,6 +206,25 @@ pub fn CommandCancel::msg_id() -> UInt32
 pub fn CommandCancel::not_equal(Self, Self) -> Bool
 pub fn CommandCancel::to_repr(Self) -> @debug.Repr
 
+pub(all) struct CommandClient {
+  target_system : Byte
+  target_component : Byte
+  timeout_ms : UInt64
+  max_retries : Int32
+  mut state : CommandTxState
+  mut active_cmd : CommandLong?
+  mut last_sent_ms : UInt64
+  mut retries : Int32
+} derive(Eq, @debug.Debug)
+pub fn CommandClient::cancel_active(Self, UInt64) -> MavMessage?
+pub fn CommandClient::equal(Self, Self) -> Bool
+pub fn CommandClient::new(Byte, Byte, timeout_ms? : UInt64, max_retries? : Int32) -> Self
+pub fn CommandClient::not_equal(Self, Self) -> Bool
+pub fn CommandClient::on_command_ack(Self, CommandAck, UInt64) -> Unit
+pub fn CommandClient::poll_timeout(Self, UInt64) -> MavMessage?
+pub fn CommandClient::send_command_long(Self, UInt32, UInt64, param1? : Float, param2? : Float, param3? : Float, param4? : Float, param5? : Float, param6? : Float, param7? : Float) -> MavMessage
+pub fn CommandClient::to_repr(Self) -> @debug.Repr
+
 pub(all) struct CommandInt {
   target_system : Byte
   target_component : Byte
@@ -253,6 +272,17 @@ pub fn CommandLong::max_payload_len() -> Int32
 pub fn CommandLong::msg_id() -> UInt32
 pub fn CommandLong::not_equal(Self, Self) -> Bool
 pub fn CommandLong::to_repr(Self) -> @debug.Repr
+
+pub(all) enum CommandTxState {
+  Idle
+  Pending(UInt32, Byte)
+  InProgress(UInt32, Byte)
+  Finished(UInt32, MavResult)
+  TimedOut(UInt32)
+} derive(Eq, @debug.Debug)
+pub fn CommandTxState::equal(Self, Self) -> Bool
+pub fn CommandTxState::not_equal(Self, Self) -> Bool
+pub fn CommandTxState::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CrcFieldSpec {
   wire_type : String
@@ -408,6 +438,19 @@ pub fn Heartbeat::max_payload_len() -> Int32
 pub fn Heartbeat::msg_id() -> UInt32
 pub fn Heartbeat::not_equal(Self, Self) -> Bool
 pub fn Heartbeat::to_repr(Self) -> @debug.Repr
+
+pub(all) struct HeartbeatMonitor {
+  timeout_ms : UInt64
+  nodes : Array[NodeLinkStatus]
+} derive(Eq, @debug.Debug)
+pub fn HeartbeatMonitor::equal(Self, Self) -> Bool
+pub fn HeartbeatMonitor::get_node(Self, Byte, Byte) -> NodeLinkStatus?
+pub fn HeartbeatMonitor::is_node_alive(Self, Byte, Byte, UInt64) -> Bool
+pub fn HeartbeatMonitor::new(timeout_ms? : UInt64) -> Self
+pub fn HeartbeatMonitor::node_packet_loss_ratio(Self, Byte, Byte) -> Double
+pub fn HeartbeatMonitor::not_equal(Self, Self) -> Bool
+pub fn HeartbeatMonitor::on_frame(Self, MavFrame, UInt64) -> Unit
+pub fn HeartbeatMonitor::to_repr(Self) -> @debug.Repr
 
 pub(all) struct LocalPositionNed {
   time_boot_ms : UInt32
@@ -946,6 +989,25 @@ pub fn MissionCurrent::msg_id() -> UInt32
 pub fn MissionCurrent::not_equal(Self, Self) -> Bool
 pub fn MissionCurrent::to_repr(Self) -> @debug.Repr
 
+pub(all) struct MissionDownloadClient {
+  target_system : Byte
+  target_component : Byte
+  mission_type : Byte
+  timeout_ms : UInt64
+  max_retries : Int32
+  mut state : MissionTxState
+  mut expected_count : UInt32
+  mut last_action_ms : UInt64
+  mut retries : Int32
+  downloaded_items : Array[MissionItemInt]
+} derive(Eq, @debug.Debug)
+pub fn MissionDownloadClient::equal(Self, Self) -> Bool
+pub fn MissionDownloadClient::new(Byte, Byte, mission_type? : Byte, timeout_ms? : UInt64, max_retries? : Int32) -> Self
+pub fn MissionDownloadClient::not_equal(Self, Self) -> Bool
+pub fn MissionDownloadClient::on_message(Self, MavMessage, UInt64) -> MavMessage?
+pub fn MissionDownloadClient::start_download(Self, UInt64) -> MavMessage
+pub fn MissionDownloadClient::to_repr(Self) -> @debug.Repr
+
 pub(all) struct MissionItemInt {
   target_system : Byte
   target_component : Byte
@@ -1033,6 +1095,21 @@ pub fn MissionRequestList::msg_id() -> UInt32
 pub fn MissionRequestList::not_equal(Self, Self) -> Bool
 pub fn MissionRequestList::to_repr(Self) -> @debug.Repr
 
+pub(all) struct MissionServer {
+  sysid : Byte
+  compid : Byte
+  mut active_seq : UInt32
+  mut upload_expected : UInt32
+  mut uploading : Bool
+  staging_items : Array[MissionItemInt]
+  stored_items : Array[MissionItemInt]
+} derive(Eq, @debug.Debug)
+pub fn MissionServer::equal(Self, Self) -> Bool
+pub fn MissionServer::handle_message(Self, Byte, Byte, MavMessage) -> MavMessage?
+pub fn MissionServer::new(Byte, Byte) -> Self
+pub fn MissionServer::not_equal(Self, Self) -> Bool
+pub fn MissionServer::to_repr(Self) -> @debug.Repr
+
 pub(all) struct MissionSetCurrent {
   target_system : Byte
   target_component : Byte
@@ -1047,6 +1124,57 @@ pub fn MissionSetCurrent::max_payload_len() -> Int32
 pub fn MissionSetCurrent::msg_id() -> UInt32
 pub fn MissionSetCurrent::not_equal(Self, Self) -> Bool
 pub fn MissionSetCurrent::to_repr(Self) -> @debug.Repr
+
+pub(all) enum MissionTxState {
+  Idle
+  AwaitingRequest
+  AwaitingCount
+  AwaitingItem(UInt32)
+  Completed
+  Failed(MavMissionResult)
+} derive(Eq, @debug.Debug)
+pub fn MissionTxState::equal(Self, Self) -> Bool
+pub fn MissionTxState::not_equal(Self, Self) -> Bool
+pub fn MissionTxState::to_repr(Self) -> @debug.Repr
+
+pub(all) struct MissionUploadClient {
+  target_system : Byte
+  target_component : Byte
+  mission_type : Byte
+  timeout_ms : UInt64
+  max_retries : Int32
+  mut state : MissionTxState
+  mut last_action_ms : UInt64
+  mut retries : Int32
+  mut last_requested_seq : Int32
+  items : Array[MissionItemInt]
+} derive(Eq, @debug.Debug)
+pub fn MissionUploadClient::equal(Self, Self) -> Bool
+pub fn MissionUploadClient::new(Byte, Byte, mission_type? : Byte, timeout_ms? : UInt64, max_retries? : Int32) -> Self
+pub fn MissionUploadClient::not_equal(Self, Self) -> Bool
+pub fn MissionUploadClient::on_message(Self, MavMessage, UInt64) -> MavMessage?
+pub fn MissionUploadClient::poll_timeout(Self, UInt64) -> MavMessage?
+pub fn MissionUploadClient::start_upload(Self, Array[MissionItemInt], UInt64) -> MavMessage
+pub fn MissionUploadClient::to_repr(Self) -> @debug.Repr
+
+pub(all) struct NodeLinkStatus {
+  sysid : Byte
+  compid : Byte
+  mut mav_type : Byte
+  mut autopilot : Byte
+  mut base_mode : Byte
+  mut custom_mode : UInt32
+  mut system_status : Byte
+  mut armed : Bool
+  mut last_seen_ms : UInt64
+  mut heartbeat_count : Int32
+  mut received_frames : Int32
+  mut dropped_frames : Int32
+  mut last_seq : Int32
+} derive(Eq, @debug.Debug)
+pub fn NodeLinkStatus::equal(Self, Self) -> Bool
+pub fn NodeLinkStatus::not_equal(Self, Self) -> Bool
+pub fn NodeLinkStatus::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ParamRequestList {
   target_system : Byte
@@ -1095,6 +1223,17 @@ pub fn ParamSet::msg_id() -> UInt32
 pub fn ParamSet::not_equal(Self, Self) -> Bool
 pub fn ParamSet::to_repr(Self) -> @debug.Repr
 
+pub(all) enum ParamSyncState {
+  Idle
+  ListingAll
+  WritingParam(String, Float, Byte)
+  Synced
+  Failed(String)
+} derive(Eq, @debug.Debug)
+pub fn ParamSyncState::equal(Self, Self) -> Bool
+pub fn ParamSyncState::not_equal(Self, Self) -> Bool
+pub fn ParamSyncState::to_repr(Self) -> @debug.Repr
+
 pub(all) struct ParamValue {
   param_id : String
   param_value : Float
@@ -1111,6 +1250,49 @@ pub fn ParamValue::max_payload_len() -> Int32
 pub fn ParamValue::msg_id() -> UInt32
 pub fn ParamValue::not_equal(Self, Self) -> Bool
 pub fn ParamValue::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ParameterClient {
+  target_system : Byte
+  target_component : Byte
+  timeout_ms : UInt64
+  max_retries : Int32
+  mut state : ParamSyncState
+  mut expected_count : Int32
+  mut last_action_ms : UInt64
+  mut retries : Int32
+  params : Array[ParameterEntry]
+} derive(Eq, @debug.Debug)
+pub fn ParameterClient::equal(Self, Self) -> Bool
+pub fn ParameterClient::get_param(Self, String) -> ParameterEntry?
+pub fn ParameterClient::missing_indices(Self) -> Array[Int32]
+pub fn ParameterClient::new(Byte, Byte, timeout_ms? : UInt64, max_retries? : Int32) -> Self
+pub fn ParameterClient::not_equal(Self, Self) -> Bool
+pub fn ParameterClient::on_param_value(Self, ParamValue, UInt64) -> Unit
+pub fn ParameterClient::poll_timeout(Self, UInt64) -> MavMessage?
+pub fn ParameterClient::start_list_sync(Self, UInt64) -> MavMessage
+pub fn ParameterClient::start_param_set(Self, String, Float, Byte, UInt64) -> MavMessage
+pub fn ParameterClient::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ParameterEntry {
+  param_id : String
+  mut param_value : Float
+  param_type : Byte
+  param_index : UInt32
+} derive(Eq, @debug.Debug)
+pub fn ParameterEntry::equal(Self, Self) -> Bool
+pub fn ParameterEntry::not_equal(Self, Self) -> Bool
+pub fn ParameterEntry::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ParameterServer {
+  sysid : Byte
+  compid : Byte
+  params : Array[ParameterEntry]
+} derive(Eq, @debug.Debug)
+pub fn ParameterServer::equal(Self, Self) -> Bool
+pub fn ParameterServer::handle_message(Self, MavMessage) -> Array[MavMessage]
+pub fn ParameterServer::new(Byte, Byte, Array[(String, Float, Byte)]) -> Self
+pub fn ParameterServer::not_equal(Self, Self) -> Bool
+pub fn ParameterServer::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ParseStreamEvent {
   FrameDecoded(MavFrame)
@@ -1458,6 +1640,28 @@ pub fn Timesync::max_payload_len() -> Int32
 pub fn Timesync::msg_id() -> UInt32
 pub fn Timesync::not_equal(Self, Self) -> Bool
 pub fn Timesync::to_repr(Self) -> @debug.Repr
+
+pub(all) struct TimesyncEstimator {
+  mut sample_count : Int32
+  mut min_rtt_ns : Int64
+  mut ema_rtt_ns : Int64
+  mut ema_offset_ns : Int64
+} derive(Eq, @debug.Debug)
+pub fn TimesyncEstimator::create_probe(Int64, target_system? : Byte, target_component? : Byte) -> MavMessage
+pub fn TimesyncEstimator::equal(Self, Self) -> Bool
+pub fn TimesyncEstimator::new() -> Self
+pub fn TimesyncEstimator::not_equal(Self, Self) -> Bool
+pub fn TimesyncEstimator::on_probe_return(Self, Timesync, Int64) -> TimesyncSample?
+pub fn TimesyncEstimator::respond_to_probe(Timesync, Int64, Byte, Byte) -> MavMessage?
+pub fn TimesyncEstimator::to_repr(Self) -> @debug.Repr
+
+pub(all) struct TimesyncSample {
+  rtt_ns : Int64
+  clock_offset_ns : Int64
+} derive(Eq, @debug.Debug)
+pub fn TimesyncSample::equal(Self, Self) -> Bool
+pub fn TimesyncSample::not_equal(Self, Self) -> Bool
+pub fn TimesyncSample::to_repr(Self) -> @debug.Repr
 
 pub(all) struct VfrHud {
   airspeed : Float

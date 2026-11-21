@@ -1597,3 +1597,253 @@ pub fn TelemetryRateTracker::total_bandwidth_bytes_per_sec(
   }
   self.total_wire_bytes.to_double() * 1000.0 / window_ms.to_double()
 }
+
+// ============================================================================
+// 8. Extended Parameter Protocol Microservice (`PARAM_EXT_*` #320..#324)
+// ============================================================================
+
+///|
+/// Extended 128-byte parameter entry for camera, gimbal, and smart payload subsystems.
+pub(all) struct ExtParameterEntry {
+  param_id : String
+  mut param_value : String
+  param_type : Byte
+  param_index : UInt32
+} derive(Eq, Debug)
+
+///|
+pub extend ExtParameterEntry with Eq::{not_equal, equal}
+
+///|
+pub extend ExtParameterEntry with @debug.Debug::{to_repr}
+
+///|
+/// Vehicle/payload-side server for the MAVLink Extended Parameter Protocol
+/// (`PARAM_EXT_REQUEST_LIST` #321, `PARAM_EXT_REQUEST_READ` #320, `PARAM_EXT_SET` #323 -> `PARAM_EXT_ACK` #324).
+pub(all) struct ExtendedParameterServer {
+  sysid : Byte
+  compid : Byte
+  params : Array[ExtParameterEntry]
+} derive(Eq, Debug)
+
+///|
+pub extend ExtendedParameterServer with Eq::{not_equal, equal}
+
+///|
+pub extend ExtendedParameterServer with @debug.Debug::{to_repr}
+
+///|
+/// Create a new `ExtendedParameterServer` initialized with `(param_id, param_value, param_type)` entries.
+pub fn ExtendedParameterServer::new(
+  sysid : Byte,
+  compid : Byte,
+  initial_params : Array[(String, String, Byte)],
+) -> ExtendedParameterServer {
+  let params : Array[ExtParameterEntry] = []
+  for i = 0; i < initial_params.length(); i = i + 1 {
+    let (id, val, ptype) = initial_params[i]
+    params.push({
+      param_id: id,
+      param_value: val,
+      param_type: ptype,
+      param_index: i.reinterpret_as_uint(),
+    })
+  }
+  { sysid, compid, params, }
+}
+
+///|
+/// Handle an incoming `PARAM_EXT_*` message and return the outbound responses.
+pub fn ExtendedParameterServer::handle_message(
+  self : ExtendedParameterServer,
+  msg : MavMessage,
+) -> Array[MavMessage] {
+  let total_count = self.params.length().reinterpret_as_uint()
+  match msg {
+    MsgParamExtRequestList(req) => {
+      if req.target_system != b'\x00' && req.target_system != self.sysid {
+        return []
+      }
+      let out : Array[MavMessage] = []
+      for p in self.params {
+        out.push(
+          MsgParamExtValue({
+            param_count: total_count,
+            param_index: p.param_index,
+            param_id: p.param_id,
+            param_value: p.param_value,
+            param_type: p.param_type,
+          }),
+        )
+      }
+      out
+    }
+    MsgParamExtRequestRead(req) => {
+      if req.target_system != b'\x00' && req.target_system != self.sysid {
+        return []
+      }
+      if req.param_index >= 0 {
+        let idx = req.param_index
+        if idx < self.params.length() {
+          let p = self.params[idx]
+          return [
+            MsgParamExtValue({
+              param_count: total_count,
+              param_index: p.param_index,
+              param_id: p.param_id,
+              param_value: p.param_value,
+              param_type: p.param_type,
+            }),
+          ]
+        }
+        return []
+      }
+      for p in self.params {
+        if p.param_id == req.param_id {
+          return [
+            MsgParamExtValue({
+              param_count: total_count,
+              param_index: p.param_index,
+              param_id: p.param_id,
+              param_value: p.param_value,
+              param_type: p.param_type,
+            }),
+          ]
+        }
+      }
+      []
+    }
+    MsgParamExtSet(req) => {
+      if req.target_system != b'\x00' && req.target_system != self.sysid {
+        return []
+      }
+      for i = 0; i < self.params.length(); i = i + 1 {
+        if self.params[i].param_id == req.param_id {
+          if self.params[i].param_type != req.param_type {
+            return [
+              MsgParamExtAck({
+                param_id: self.params[i].param_id,
+                param_value: self.params[i].param_value,
+                param_type: self.params[i].param_type,
+                param_result: ParamAck::ValueUnsupported.to_uint().to_byte(),
+              }),
+            ]
+          }
+          self.params[i].param_value = req.param_value
+          return [
+            MsgParamExtAck({
+              param_id: self.params[i].param_id,
+              param_value: self.params[i].param_value,
+              param_type: self.params[i].param_type,
+              param_result: ParamAck::Accepted.to_uint().to_byte(),
+            }),
+          ]
+        }
+      }
+      [
+        MsgParamExtAck({
+          param_id: req.param_id,
+          param_value: req.param_value,
+          param_type: req.param_type,
+          param_result: ParamAck::Failed.to_uint().to_byte(),
+        }),
+      ]
+    }
+    _ => []
+  }
+}
+
+///|
+/// GCS-side client for the MAVLink Extended Parameter Protocol (`PARAM_EXT_*` #320..#324).
+pub(all) struct ExtendedParameterClient {
+  target_system : Byte
+  target_component : Byte
+  mut last_ack_result : ParamAck?
+  params : Array[ExtParameterEntry]
+} derive(Eq, Debug)
+
+///|
+pub extend ExtendedParameterClient with Eq::{not_equal, equal}
+
+///|
+pub extend ExtendedParameterClient with @debug.Debug::{to_repr}
+
+///|
+/// Create a new `ExtendedParameterClient`.
+pub fn ExtendedParameterClient::new(
+  target_system : Byte,
+  target_component : Byte,
+) -> ExtendedParameterClient {
+  { target_system, target_component, last_ack_result: None, params: [], }
+}
+
+///|
+/// Request all extended parameters (`PARAM_EXT_REQUEST_LIST` #321).
+pub fn ExtendedParameterClient::request_list(
+  self : ExtendedParameterClient,
+) -> MavMessage {
+  self.params.clear()
+  MsgParamExtRequestList({
+    target_system: self.target_system,
+    target_component: self.target_component,
+  })
+}
+
+///|
+/// Send a `PARAM_EXT_SET` (#323) command to update an extended parameter.
+pub fn ExtendedParameterClient::set_param(
+  self : ExtendedParameterClient,
+  param_id : String,
+  param_value : String,
+  param_type : Byte,
+) -> MavMessage {
+  self.last_ack_result = None
+  MsgParamExtSet({
+    target_system: self.target_system,
+    target_component: self.target_component,
+    param_id,
+    param_value,
+    param_type,
+  })
+}
+
+///|
+/// Process an incoming `PARAM_EXT_VALUE` (#322) or `PARAM_EXT_ACK` (#324) message.
+pub fn ExtendedParameterClient::on_message(
+  self : ExtendedParameterClient,
+  msg : MavMessage,
+) -> Unit {
+  match msg {
+    MsgParamExtValue(pev) => {
+      for i = 0; i < self.params.length(); i = i + 1 {
+        if self.params[i].param_id == pev.param_id {
+          self.params[i] = {
+            param_id: pev.param_id,
+            param_value: pev.param_value,
+            param_type: pev.param_type,
+            param_index: pev.param_index,
+          }
+          return ()
+        }
+      }
+      self.params.push({
+        param_id: pev.param_id,
+        param_value: pev.param_value,
+        param_type: pev.param_type,
+        param_index: pev.param_index,
+      })
+    }
+    MsgParamExtAck(ack) => {
+      self.last_ack_result = ParamAck::from_uint(ack.param_result.to_uint())
+      if self.last_ack_result == Some(Accepted) {
+        for i = 0; i < self.params.length(); i = i + 1 {
+          if self.params[i].param_id == ack.param_id {
+            self.params[i].param_value = ack.param_value
+            return ()
+          }
+        }
+      }
+    }
+    _ => ()
+  }
+}

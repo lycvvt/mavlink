@@ -373,6 +373,41 @@ pub fn DistanceSensor::msg_id() -> UInt32
 pub fn DistanceSensor::not_equal(Self, Self) -> Bool
 pub fn DistanceSensor::to_repr(Self) -> @debug.Repr
 
+pub(all) struct ExtParameterEntry {
+  param_id : String
+  mut param_value : String
+  param_type : Byte
+  param_index : UInt32
+} derive(Eq, @debug.Debug)
+pub fn ExtParameterEntry::equal(Self, Self) -> Bool
+pub fn ExtParameterEntry::not_equal(Self, Self) -> Bool
+pub fn ExtParameterEntry::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ExtendedParameterClient {
+  target_system : Byte
+  target_component : Byte
+  mut last_ack_result : ParamAck?
+  params : Array[ExtParameterEntry]
+} derive(Eq, @debug.Debug)
+pub fn ExtendedParameterClient::equal(Self, Self) -> Bool
+pub fn ExtendedParameterClient::new(Byte, Byte) -> Self
+pub fn ExtendedParameterClient::not_equal(Self, Self) -> Bool
+pub fn ExtendedParameterClient::on_message(Self, MavMessage) -> Unit
+pub fn ExtendedParameterClient::request_list(Self) -> MavMessage
+pub fn ExtendedParameterClient::set_param(Self, String, String, Byte) -> MavMessage
+pub fn ExtendedParameterClient::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ExtendedParameterServer {
+  sysid : Byte
+  compid : Byte
+  params : Array[ExtParameterEntry]
+} derive(Eq, @debug.Debug)
+pub fn ExtendedParameterServer::equal(Self, Self) -> Bool
+pub fn ExtendedParameterServer::handle_message(Self, MavMessage) -> Array[MavMessage]
+pub fn ExtendedParameterServer::new(Byte, Byte, Array[(String, String, Byte)]) -> Self
+pub fn ExtendedParameterServer::not_equal(Self, Self) -> Bool
+pub fn ExtendedParameterServer::to_repr(Self) -> @debug.Repr
+
 pub(all) struct ExtendedSysState {
   vtol_state : Byte
   landed_state : Byte

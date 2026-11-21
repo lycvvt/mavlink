@@ -34,7 +34,11 @@ pub fn crc16_calculate_with_extra(Bytes, Byte) -> UInt32
 
 pub fn decode_frame(Bytes, (UInt32) -> Byte?, start? : Int32, signing? : SigningContext?) -> Result[(MavFrame, Int32), MavError]
 
+pub fn decode_tlog_stream(Bytes, (UInt32) -> Byte?, signing? : SigningContext?) -> Result[Array[TlogEntry], MavError]
+
 pub fn encode_frame(MavHeader, Bytes, Byte, truncate_v2_zeros? : Bool, signing? : SigningContext?) -> Result[(Bytes, MavFrame), MavError]
+
+pub fn encode_tlog_entry(UInt64, Bytes) -> Bytes
 
 pub fn enum_entry_variant_name(String, String) -> String
 
@@ -49,6 +53,10 @@ pub fn evaluate_zero_trimming_bandwidth() -> ZeroTrimmingBandwidthReport
 pub fn extract_message_target(MavMessage) -> (Byte, Byte)?
 
 pub fn field_moonbit_type(MavFieldType) -> String
+
+pub fn filter_tlog_by_msgid(Array[TlogEntry], UInt32) -> Array[TlogEntry]
+
+pub fn filter_tlog_by_time_range(Array[TlogEntry], UInt64, UInt64) -> Array[TlogEntry]
 
 pub fn generate_moonbit_code(DialectSchema) -> String
 
@@ -2246,6 +2254,26 @@ pub(all) struct TimesyncSample {
 pub fn TimesyncSample::equal(Self, Self) -> Bool
 pub fn TimesyncSample::not_equal(Self, Self) -> Bool
 pub fn TimesyncSample::to_repr(Self) -> @debug.Repr
+
+pub(all) struct TlogEntry {
+  timestamp_usec : UInt64
+  frame : MavFrame
+} derive(Eq, @debug.Debug)
+pub fn TlogEntry::equal(Self, Self) -> Bool
+pub fn TlogEntry::not_equal(Self, Self) -> Bool
+pub fn TlogEntry::to_repr(Self) -> @debug.Repr
+
+pub(all) struct TlogRecorder {
+  buf : Array[Byte]
+  mut entry_count : Int32
+} derive(Eq, @debug.Debug)
+pub fn TlogRecorder::equal(Self, Self) -> Bool
+pub fn TlogRecorder::new() -> Self
+pub fn TlogRecorder::not_equal(Self, Self) -> Bool
+pub fn TlogRecorder::record_message(Self, UInt64, MavMessage, seq~ : Byte, sysid~ : Byte, compid~ : Byte, version? : ProtocolVersion, signing? : SigningContext?) -> Result[Unit, MavError]
+pub fn TlogRecorder::record_wire_frame(Self, UInt64, Bytes) -> Unit
+pub fn TlogRecorder::to_bytes(Self) -> Bytes
+pub fn TlogRecorder::to_repr(Self) -> @debug.Repr
 
 pub(all) struct VfrHud {
   airspeed : Float

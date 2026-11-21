@@ -632,11 +632,16 @@ pub fn evaluate_noisy_stream_recovery(
     for i = 0; i < chunk_len; i = i + 1 {
       chunk.push(stream_buf[pos + i])
     }
-    let frames = parser.push_bytes(
+    let events = parser.push_bytes(
       Bytes::from_array(chunk),
       lookup_message_crc_extra,
     )
-    recovered = recovered + frames.length()
+    for ev in events {
+      match ev {
+        FrameDecoded(_) => recovered = recovered + 1
+        FrameError(_) => ()
+      }
+    }
     pos = pos + chunk_len
   }
 

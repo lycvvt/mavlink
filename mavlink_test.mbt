@@ -283,3 +283,115 @@ test "blackbox: rejection of duplicate message IDs, >255B payload, unknown field
     is Err(@mavlink.MavError::XmlParseError(_)),
   )
 }
+
+///|
+test "blackbox: all 18 standard MAVLink enums roundtrip via to_uint and from_uint" {
+  assert_eq(
+    @mavlink.MavComponent::from_uint(
+      @mavlink.MavComponent::MavCompIdAutopilot1.to_uint(),
+    ),
+    Some(@mavlink.MavComponent::MavCompIdAutopilot1),
+  )
+  assert_eq(
+    @mavlink.MavParamType::from_uint(@mavlink.MavParamType::Real32.to_uint()),
+    Some(@mavlink.MavParamType::Real32),
+  )
+  assert_eq(
+    @mavlink.MavDataStream::from_uint(
+      @mavlink.MavDataStream::Position.to_uint(),
+    ),
+    Some(@mavlink.MavDataStream::Position),
+  )
+  assert_eq(
+    @mavlink.MavDistanceSensor::from_uint(
+      @mavlink.MavDistanceSensor::Laser.to_uint(),
+    ),
+    Some(@mavlink.MavDistanceSensor::Laser),
+  )
+  assert_eq(
+    @mavlink.MavSensorOrientation::from_uint(
+      @mavlink.MavSensorOrientation::MavSensorRotationPitch270.to_uint(),
+    ),
+    Some(@mavlink.MavSensorOrientation::MavSensorRotationPitch270),
+  )
+  assert_eq(
+    @mavlink.MavLandedState::from_uint(@mavlink.MavLandedState::InAir.to_uint()),
+    Some(@mavlink.MavLandedState::InAir),
+  )
+  assert_eq(
+    @mavlink.MavVtolState::from_uint(@mavlink.MavVtolState::Mc.to_uint()),
+    Some(@mavlink.MavVtolState::Mc),
+  )
+  assert_eq(
+    @mavlink.MavSeverity::from_uint(@mavlink.MavSeverity::Info.to_uint()),
+    Some(@mavlink.MavSeverity::Info),
+  )
+  assert_eq(
+    @mavlink.GpsFixType::from_uint(@mavlink.GpsFixType::RtkFixed.to_uint()),
+    Some(@mavlink.GpsFixType::RtkFixed),
+  )
+  assert_eq(
+    @mavlink.MavMissionType::from_uint(@mavlink.MavMissionType::Fence.to_uint()),
+    Some(@mavlink.MavMissionType::Fence),
+  )
+}
+
+///|
+test "blackbox: MavMessage metadata dispatch (msg_id, msg_name, crc_extra, base_payload_len, max_payload_len)" {
+  let gps_msg = @mavlink.MavMessage::MsgGpsRawInt({
+    time_usec: 1000UL,
+    lat: 225430960,
+    lon: 1140578650,
+    alt: 10000,
+    eph: 50U,
+    epv: 80U,
+    vel: 100U,
+    cog: 9000U,
+    fix_type: b'\x03',
+    satellites_visible: b'\x0c',
+    alt_ellipsoid: 9500,
+    h_acc: 10U,
+    v_acc: 15U,
+    vel_acc: 5U,
+    hdg_acc: 100U,
+    yaw: 9000U,
+  })
+  assert_eq(gps_msg.msg_id(), 24U)
+  assert_eq(gps_msg.msg_name(), "GPS_RAW_INT")
+  assert_eq(gps_msg.crc_extra(), b'\x18')
+  assert_eq(gps_msg.base_payload_len(), 30)
+  assert_eq(gps_msg.max_payload_len(), 52)
+}
+
+///|
+test "blackbox: generate_moonbit_from_xml_with_includes resolves builtin_xml_resolver" {
+  let custom_dialect =
+    #|<?xml version="1.0"?>
+    #|<mavlink>
+    #|  <version>3</version>
+    #|  <dialect>9</dialect>
+    #|  <include>minimal.xml</include>
+    #|  <messages>
+    #|    <message id="42000" name="PAYLOAD_WINCH_STATUS">
+    #|      <field type="uint32_t" name="time_boot_ms"/>
+    #|      <field type="float" name="line_length_m"/>
+    #|      <field type="int16_t" name="tension_g"/>
+    #|      <field type="uint8_t" name="status_flags"/>
+    #|    </message>
+    #|  </messages>
+    #|</mavlink>
+  let (schema, code) = match
+    @mavlink.generate_moonbit_from_xml_with_includes("winch.xml", fn(name) {
+      if name == "winch.xml" {
+        Some(custom_dialect)
+      } else {
+        @mavlink.builtin_xml_resolver(name)
+      }
+    }) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(schema.messages.length(), 2)
+  assert_true(code.contains("pub(all) struct Heartbeat"))
+  assert_true(code.contains("pub(all) struct PayloadWinchStatus"))
+}

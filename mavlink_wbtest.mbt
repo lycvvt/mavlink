@@ -2750,3 +2750,107 @@ test "boundary: ExtendedParameterServer rejects mismatched param_type with Value
   cli.on_message(unknown_ack[0])
   assert_eq(cli.last_ack_result, Some(Failed))
 }
+
+///|
+test "microservice: FtpServer virtual file OpenFileRO, ReadFile, ListDirectory, and TerminateSession" {
+  let srv = FtpServer::new(
+    [
+      ("/fs/microsd/boot.txt", b"PX4_BOOT_OK_2026"),
+      ("/fs/microsd/version.json", b"{\"fw\":\"1.15.0\"}"),
+    ],
+    session_id=b'\x02',
+  )
+
+  // 1. ListDirectory
+  let list_ack = srv.handle_packet({
+    seq_number: 1U,
+    session: b'\x00',
+    opcode: ListDirectory,
+    req_opcode: FtpNone,
+    burst_complete: false,
+    offset: 0U,
+    data: b"/fs/microsd",
+  })
+  assert_eq(list_ack.opcode, Ack)
+  assert_eq(list_ack.req_opcode, ListDirectory)
+  assert_true(list_ack.data.length() > 20)
+
+  // 2. OpenFileRO on existing file
+  let open_ack = srv.handle_packet({
+    seq_number: 2U,
+    session: b'\x00',
+    opcode: OpenFileRO,
+    req_opcode: FtpNone,
+    burst_complete: false,
+    offset: 0U,
+    data: b"/fs/microsd/boot.txt",
+  })
+  assert_eq(open_ack.opcode, Ack)
+  assert_eq(open_ack.session, b'\x02')
+  // File size is 16 bytes (0x10, 0x00, 0x00, 0x00)
+  assert_eq(open_ack.data, b"\x10\x00\x00\x00")
+
+  // 3. ReadFile at offset 4 ("BOOT_OK_2026")
+  let read_ack = srv.handle_packet({
+    seq_number: 3U,
+    session: b'\x02',
+    opcode: ReadFile,
+    req_opcode: FtpNone,
+    burst_complete: false,
+    offset: 4U,
+    data: b"",
+  })
+  assert_eq(read_ack.opcode, Ack)
+  assert_eq(read_ack.data, b"BOOT_OK_2026")
+  assert_eq(read_ack.burst_complete, true)
+
+  // 4. ReadFile past EOF (offset=16) -> Nak (EOF = 0x06)
+  let eof_nak = srv.handle_packet({
+    seq_number: 4U,
+    session: b'\x02',
+    opcode: ReadFile,
+    req_opcode: FtpNone,
+    burst_complete: false,
+    offset: 16U,
+    data: b"",
+  })
+  assert_eq(eof_nak.opcode, Nak)
+  assert_eq(eof_nak.data, b"\x06")
+
+  // 5. TerminateSession -> subsequent ReadFile returns Nak (InvalidSession = 0x03)
+  let term_ack = srv.handle_packet({
+    seq_number: 5U,
+    session: b'\x02',
+    opcode: TerminateSession,
+    req_opcode: FtpNone,
+    burst_complete: false,
+    offset: 0U,
+    data: b"",
+  })
+  assert_eq(term_ack.opcode, Ack)
+
+  let closed_nak = srv.handle_packet({
+    seq_number: 6U,
+    session: b'\x02',
+    opcode: ReadFile,
+    req_opcode: FtpNone,
+    burst_complete: false,
+    offset: 0U,
+    data: b"",
+  })
+  assert_eq(closed_nak.opcode, Nak)
+  assert_eq(closed_nak.data, b"\x03")
+
+  // 6. OpenFileRO on non-existent file -> Nak (FileNotFound = 0x0A)
+  let missing_nak = srv.handle_packet({
+    seq_number: 7U,
+    session: b'\x00',
+    opcode: OpenFileRO,
+    req_opcode: FtpNone,
+    burst_complete: false,
+    offset: 0U,
+    data: b"/fs/microsd/no_such_file.ulg",
+  })
+  assert_eq(missing_nak.opcode, Nak)
+  assert_eq(missing_nak.data, b"\x0A")
+}

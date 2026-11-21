@@ -2689,3 +2689,64 @@ test "boundary: new bitmask and extended parameter enums roundtrip via to_uint a
     Some(AttitudeTargetTypemask::AttitudeIgnore),
   )
 }
+
+///|
+test "microservice: ExtendedParameterServer and ExtendedParameterClient full list, read, and PARAM_EXT_SET lifecycle" {
+  let custom_type = MavParamExtType::Custom.to_uint().to_byte()
+  let srv = ExtendedParameterServer::new(b'\x01', b'\x64', [
+    ("CAM_STREAM_URI", "rtsp://192.168.144.25:8554/main", custom_type),
+    ("CAM_RES_MODE", "3840x2160@60fps", custom_type),
+  ])
+  let cli = ExtendedParameterClient::new(b'\x01', b'\x64')
+
+  let req_list = cli.request_list()
+  let list_replies = srv.handle_message(req_list)
+  assert_eq(list_replies.length(), 2)
+  for rep in list_replies {
+    cli.on_message(rep)
+  }
+  assert_eq(cli.params.length(), 2)
+  assert_eq(cli.params[0].param_value, "rtsp://192.168.144.25:8554/main")
+
+  // Read single extended parameter by name (param_index == -1)
+  let read_replies = srv.handle_message(
+    MsgParamExtRequestRead({
+      param_index: -1,
+      target_system: b'\x01',
+      target_component: b'\x64',
+      param_id: "CAM_RES_MODE",
+    }),
+  )
+  assert_eq(read_replies.length(), 1)
+
+  // Set parameter with matching type -> Accepted
+  let set_req = cli.set_param("CAM_RES_MODE", "1920x1080@120fps", custom_type)
+  let set_ack = srv.handle_message(set_req)
+  assert_eq(set_ack.length(), 1)
+  cli.on_message(set_ack[0])
+  assert_eq(cli.last_ack_result, Some(Accepted))
+  assert_eq(cli.params[1].param_value, "1920x1080@120fps")
+}
+
+///|
+test "boundary: ExtendedParameterServer rejects mismatched param_type with ValueUnsupported and unknown param_id with Failed" {
+  let custom_type = MavParamExtType::Custom.to_uint().to_byte()
+  let srv = ExtendedParameterServer::new(b'\x01', b'\x64', [
+    ("CAM_ISO_LIMIT", "1600", custom_type),
+  ])
+  let cli = ExtendedParameterClient::new(b'\x01', b'\x64')
+
+  // Wrong param_type -> ValueUnsupported
+  let bad_type_ack = srv.handle_message(
+    cli.set_param("CAM_ISO_LIMIT", "3200", b'\x01'),
+  )
+  cli.on_message(bad_type_ack[0])
+  assert_eq(cli.last_ack_result, Some(ValueUnsupported))
+
+  // Non-existent param_id -> Failed
+  let unknown_ack = srv.handle_message(
+    cli.set_param("NON_EXISTENT", "0", custom_type),
+  )
+  cli.on_message(unknown_ack[0])
+  assert_eq(cli.last_ack_result, Some(Failed))
+}

@@ -22,6 +22,8 @@ pub const V2_SIGNATURE_LEN : Int32 = 13
 
 pub const X25_INIT_CRC : UInt32 = 0xFFFF
 
+pub fn builtin_xml_resolver(String) -> String?
+
 pub fn compute_crc_extra(String, Array[CrcFieldSpec]) -> Result[Byte, MavError]
 
 pub fn compute_v2_signature_bytes(FixedArray[Byte], Bytes, Byte, UInt64) -> FixedArray[Byte]
@@ -42,11 +44,21 @@ pub fn generate_moonbit_code(DialectSchema) -> String
 
 pub fn generate_moonbit_from_xml(String) -> Result[(DialectSchema, String), MavError]
 
+pub fn generate_moonbit_from_xml_with_includes(String, (String) -> String?) -> Result[(DialectSchema, String), MavError]
+
 pub fn lookup_message_crc_extra(UInt32) -> Byte?
+
+pub fn lookup_message_name(UInt32) -> String?
+
+pub fn merge_dialect_schemas(DialectSchema, DialectSchema) -> Result[DialectSchema, MavError]
+
+pub let official_minimal_xml : String
 
 pub let official_standard_xml : String
 
 pub fn parse_dialect_xml(String) -> Result[DialectSchema, MavError]
+
+pub fn parse_dialect_xml_with_includes(String, (String) -> String?) -> Result[DialectSchema, MavError]
 
 pub fn parse_mav_field_type(String) -> Result[MavFieldType, MavError]
 
@@ -90,6 +102,77 @@ pub fn Attitude::msg_id() -> UInt32
 pub fn Attitude::not_equal(Self, Self) -> Bool
 pub fn Attitude::to_repr(Self) -> @debug.Repr
 
+pub(all) struct AttitudeQuaternion {
+  time_boot_ms : UInt32
+  q1 : Float
+  q2 : Float
+  q3 : Float
+  q4 : Float
+  rollspeed : Float
+  pitchspeed : Float
+  yawspeed : Float
+  repr_offset_q : FixedArray[Float]
+} derive(Eq, @debug.Debug)
+pub fn AttitudeQuaternion::base_payload_len() -> Int32
+pub fn AttitudeQuaternion::crc_extra() -> Byte
+pub fn AttitudeQuaternion::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn AttitudeQuaternion::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn AttitudeQuaternion::equal(Self, Self) -> Bool
+pub fn AttitudeQuaternion::max_payload_len() -> Int32
+pub fn AttitudeQuaternion::msg_id() -> UInt32
+pub fn AttitudeQuaternion::not_equal(Self, Self) -> Bool
+pub fn AttitudeQuaternion::to_repr(Self) -> @debug.Repr
+
+pub(all) struct AutopilotVersion {
+  capabilities : UInt64
+  flight_sw_version : UInt32
+  middleware_sw_version : UInt32
+  os_sw_version : UInt32
+  board_version : UInt32
+  flight_custom_version : FixedArray[Byte]
+  middleware_custom_version : FixedArray[Byte]
+  os_custom_version : FixedArray[Byte]
+  vendor_id : UInt32
+  product_id : UInt32
+  uid : UInt64
+  uid2 : FixedArray[Byte]
+} derive(Eq, @debug.Debug)
+pub fn AutopilotVersion::base_payload_len() -> Int32
+pub fn AutopilotVersion::crc_extra() -> Byte
+pub fn AutopilotVersion::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn AutopilotVersion::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn AutopilotVersion::equal(Self, Self) -> Bool
+pub fn AutopilotVersion::max_payload_len() -> Int32
+pub fn AutopilotVersion::msg_id() -> UInt32
+pub fn AutopilotVersion::not_equal(Self, Self) -> Bool
+pub fn AutopilotVersion::to_repr(Self) -> @debug.Repr
+
+pub(all) struct BatteryStatus {
+  id : Byte
+  battery_function : Byte
+  mav_type : Byte
+  temperature : Int32
+  voltages : FixedArray[UInt32]
+  current_battery : Int32
+  current_consumed : Int32
+  energy_consumed : Int32
+  battery_remaining : Int32
+  time_remaining : Int32
+  charge_state : Byte
+  voltages_ext : FixedArray[UInt32]
+  mode : Byte
+  fault_bitmask : UInt32
+} derive(Eq, @debug.Debug)
+pub fn BatteryStatus::base_payload_len() -> Int32
+pub fn BatteryStatus::crc_extra() -> Byte
+pub fn BatteryStatus::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn BatteryStatus::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn BatteryStatus::equal(Self, Self) -> Bool
+pub fn BatteryStatus::max_payload_len() -> Int32
+pub fn BatteryStatus::msg_id() -> UInt32
+pub fn BatteryStatus::not_equal(Self, Self) -> Bool
+pub fn BatteryStatus::to_repr(Self) -> @debug.Repr
+
 pub(all) struct CommandAck {
   command : UInt32
   result : Byte
@@ -107,6 +190,46 @@ pub fn CommandAck::max_payload_len() -> Int32
 pub fn CommandAck::msg_id() -> UInt32
 pub fn CommandAck::not_equal(Self, Self) -> Bool
 pub fn CommandAck::to_repr(Self) -> @debug.Repr
+
+pub(all) struct CommandCancel {
+  target_system : Byte
+  target_component : Byte
+  command : UInt32
+} derive(Eq, @debug.Debug)
+pub fn CommandCancel::base_payload_len() -> Int32
+pub fn CommandCancel::crc_extra() -> Byte
+pub fn CommandCancel::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn CommandCancel::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn CommandCancel::equal(Self, Self) -> Bool
+pub fn CommandCancel::max_payload_len() -> Int32
+pub fn CommandCancel::msg_id() -> UInt32
+pub fn CommandCancel::not_equal(Self, Self) -> Bool
+pub fn CommandCancel::to_repr(Self) -> @debug.Repr
+
+pub(all) struct CommandInt {
+  target_system : Byte
+  target_component : Byte
+  frame : Byte
+  command : UInt32
+  current : Byte
+  autocontinue : Byte
+  param1 : Float
+  param2 : Float
+  param3 : Float
+  param4 : Float
+  x : Int32
+  y : Int32
+  z : Float
+} derive(Eq, @debug.Debug)
+pub fn CommandInt::base_payload_len() -> Int32
+pub fn CommandInt::crc_extra() -> Byte
+pub fn CommandInt::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn CommandInt::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn CommandInt::equal(Self, Self) -> Bool
+pub fn CommandInt::max_payload_len() -> Int32
+pub fn CommandInt::msg_id() -> UInt32
+pub fn CommandInt::not_equal(Self, Self) -> Bool
+pub fn CommandInt::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CommandLong {
   target_system : Byte
@@ -151,6 +274,44 @@ pub(all) struct DialectSchema {
 pub fn DialectSchema::equal(Self, Self) -> Bool
 pub fn DialectSchema::not_equal(Self, Self) -> Bool
 pub fn DialectSchema::to_repr(Self) -> @debug.Repr
+
+pub(all) struct DistanceSensor {
+  time_boot_ms : UInt32
+  min_distance : UInt32
+  max_distance : UInt32
+  current_distance : UInt32
+  mav_type : Byte
+  id : Byte
+  orientation : Byte
+  covariance : Byte
+  horizontal_fov : Float
+  vertical_fov : Float
+  quaternion : FixedArray[Float]
+  signal_quality : Byte
+} derive(Eq, @debug.Debug)
+pub fn DistanceSensor::base_payload_len() -> Int32
+pub fn DistanceSensor::crc_extra() -> Byte
+pub fn DistanceSensor::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn DistanceSensor::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn DistanceSensor::equal(Self, Self) -> Bool
+pub fn DistanceSensor::max_payload_len() -> Int32
+pub fn DistanceSensor::msg_id() -> UInt32
+pub fn DistanceSensor::not_equal(Self, Self) -> Bool
+pub fn DistanceSensor::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ExtendedSysState {
+  vtol_state : Byte
+  landed_state : Byte
+} derive(Eq, @debug.Debug)
+pub fn ExtendedSysState::base_payload_len() -> Int32
+pub fn ExtendedSysState::crc_extra() -> Byte
+pub fn ExtendedSysState::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn ExtendedSysState::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn ExtendedSysState::equal(Self, Self) -> Bool
+pub fn ExtendedSysState::max_payload_len() -> Int32
+pub fn ExtendedSysState::msg_id() -> UInt32
+pub fn ExtendedSysState::not_equal(Self, Self) -> Bool
+pub fn ExtendedSysState::to_repr(Self) -> @debug.Repr
 
 pub(all) struct FrameParser {
   buffer : Array[Byte]
@@ -282,6 +443,28 @@ pub fn LoggingAck::msg_id() -> UInt32
 pub fn LoggingAck::not_equal(Self, Self) -> Bool
 pub fn LoggingAck::to_repr(Self) -> @debug.Repr
 
+pub(all) struct ManualControl {
+  target : Byte
+  x : Int32
+  y : Int32
+  z : Int32
+  r : Int32
+  buttons : UInt32
+  buttons2 : UInt32
+  enabled_extensions : Byte
+  s : Int32
+  t : Int32
+} derive(Eq, @debug.Debug)
+pub fn ManualControl::base_payload_len() -> Int32
+pub fn ManualControl::crc_extra() -> Byte
+pub fn ManualControl::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn ManualControl::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn ManualControl::equal(Self, Self) -> Bool
+pub fn ManualControl::max_payload_len() -> Int32
+pub fn ManualControl::msg_id() -> UInt32
+pub fn ManualControl::not_equal(Self, Self) -> Bool
+pub fn ManualControl::to_repr(Self) -> @debug.Repr
+
 pub(all) enum MavAutopilot {
   Generic
   Ardupilotmega
@@ -296,11 +479,17 @@ pub fn MavAutopilot::to_uint(Self) -> UInt32
 
 pub(all) enum MavCmd {
   NavWaypoint
+  NavLoiterUnlim
   NavReturnToLaunch
   NavLand
   NavTakeoff
+  DoSetMode
+  DoChangeSpeed
+  DoSetServo
   ComponentArmDisarm
+  SetMessageInterval
   RequestMessage
+  RequestAutopilotCapabilities
 } derive(Eq, @debug.Debug)
 pub fn MavCmd::equal(Self, Self) -> Bool
 pub fn MavCmd::from_uint(UInt32) -> Self?
@@ -308,18 +497,81 @@ pub fn MavCmd::not_equal(Self, Self) -> Bool
 pub fn MavCmd::to_repr(Self) -> @debug.Repr
 pub fn MavCmd::to_uint(Self) -> UInt32
 
+pub(all) enum MavComponent {
+  MavCompIdAll
+  MavCompIdAutopilot1
+  MavCompIdCamera
+  MavCompIdGimbal
+  MavCompIdMissionplanner
+  MavCompIdOnboardComputer
+  MavCompIdGps
+} derive(Eq, @debug.Debug)
+pub fn MavComponent::equal(Self, Self) -> Bool
+pub fn MavComponent::from_uint(UInt32) -> Self?
+pub fn MavComponent::not_equal(Self, Self) -> Bool
+pub fn MavComponent::to_repr(Self) -> @debug.Repr
+pub fn MavComponent::to_uint(Self) -> UInt32
+
 pub(all) enum MavCoordFrame {
   Global
   LocalNed
+  Mission
   GlobalRelativeAlt
+  LocalEnu
   GlobalInt
   GlobalRelativeAltInt
+  BodyNed
 } derive(Eq, @debug.Debug)
 pub fn MavCoordFrame::equal(Self, Self) -> Bool
 pub fn MavCoordFrame::from_uint(UInt32) -> Self?
 pub fn MavCoordFrame::not_equal(Self, Self) -> Bool
 pub fn MavCoordFrame::to_repr(Self) -> @debug.Repr
 pub fn MavCoordFrame::to_uint(Self) -> UInt32
+
+pub(all) enum MavDataStream {
+  All
+  RawSensors
+  ExtendedStatus
+  RcChannels
+  RawController
+  Position
+  Extra1
+  Extra2
+  Extra3
+} derive(Eq, @debug.Debug)
+pub fn MavDataStream::equal(Self, Self) -> Bool
+pub fn MavDataStream::from_uint(UInt32) -> Self?
+pub fn MavDataStream::not_equal(Self, Self) -> Bool
+pub fn MavDataStream::to_repr(Self) -> @debug.Repr
+pub fn MavDataStream::to_uint(Self) -> UInt32
+
+pub(all) struct MavDebug {
+  time_boot_ms : UInt32
+  ind : Byte
+  value : Float
+} derive(Eq, @debug.Debug)
+pub fn MavDebug::base_payload_len() -> Int32
+pub fn MavDebug::crc_extra() -> Byte
+pub fn MavDebug::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MavDebug::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MavDebug::equal(Self, Self) -> Bool
+pub fn MavDebug::max_payload_len() -> Int32
+pub fn MavDebug::msg_id() -> UInt32
+pub fn MavDebug::not_equal(Self, Self) -> Bool
+pub fn MavDebug::to_repr(Self) -> @debug.Repr
+
+pub(all) enum MavDistanceSensor {
+  Laser
+  Ultrasound
+  Infrared
+  Radar
+  Unknown
+} derive(Eq, @debug.Debug)
+pub fn MavDistanceSensor::equal(Self, Self) -> Bool
+pub fn MavDistanceSensor::from_uint(UInt32) -> Self?
+pub fn MavDistanceSensor::not_equal(Self, Self) -> Bool
+pub fn MavDistanceSensor::to_repr(Self) -> @debug.Repr
+pub fn MavDistanceSensor::to_uint(Self) -> UInt32
 
 pub(all) enum MavError {
   InvalidMagic(Byte)
@@ -375,34 +627,75 @@ pub fn MavHeader::new_v2(seq~ : Byte, sysid~ : Byte, compid~ : Byte, msgid~ : UI
 pub fn MavHeader::not_equal(Self, Self) -> Bool
 pub fn MavHeader::to_repr(Self) -> @debug.Repr
 
+pub(all) enum MavLandedState {
+  Undefined
+  OnGround
+  InAir
+  Takeoff
+  Landing
+} derive(Eq, @debug.Debug)
+pub fn MavLandedState::equal(Self, Self) -> Bool
+pub fn MavLandedState::from_uint(UInt32) -> Self?
+pub fn MavLandedState::not_equal(Self, Self) -> Bool
+pub fn MavLandedState::to_repr(Self) -> @debug.Repr
+pub fn MavLandedState::to_uint(Self) -> UInt32
+
 pub(all) enum MavMessage {
   MsgHeartbeat(Heartbeat)
   MsgSysStatus(SysStatus)
   MsgSystemTime(SystemTime)
   MsgPing(Ping)
+  MsgSetMode(SetMode)
   MsgParamRequestRead(ParamRequestRead)
+  MsgParamRequestList(ParamRequestList)
   MsgParamValue(ParamValue)
   MsgParamSet(ParamSet)
   MsgGpsRawInt(GpsRawInt)
+  MsgScaledImu(ScaledImu)
+  MsgRawImu(RawImu)
+  MsgScaledPressure(ScaledPressure)
   MsgAttitude(Attitude)
+  MsgAttitudeQuaternion(AttitudeQuaternion)
   MsgLocalPositionNed(LocalPositionNed)
   MsgGlobalPositionInt(GlobalPositionInt)
   MsgRcChannelsRaw(RcChannelsRaw)
+  MsgServoOutputRaw(ServoOutputRaw)
+  MsgMissionRequest(MissionRequest)
+  MsgMissionSetCurrent(MissionSetCurrent)
+  MsgMissionCurrent(MissionCurrent)
+  MsgMissionRequestList(MissionRequestList)
   MsgMissionCount(MissionCount)
+  MsgMissionClearAll(MissionClearAll)
+  MsgMissionItemReached(MissionItemReached)
   MsgMissionAck(MissionAck)
   MsgMissionRequestInt(MissionRequestInt)
+  MsgRcChannels(RcChannels)
+  MsgManualControl(ManualControl)
   MsgMissionItemInt(MissionItemInt)
+  MsgVfrHud(VfrHud)
+  MsgCommandInt(CommandInt)
   MsgCommandLong(CommandLong)
   MsgCommandAck(CommandAck)
+  MsgCommandCancel(CommandCancel)
+  MsgSetAttitudeTarget(SetAttitudeTarget)
+  MsgTimesync(Timesync)
+  MsgDistanceSensor(DistanceSensor)
+  MsgBatteryStatus(BatteryStatus)
+  MsgAutopilotVersion(AutopilotVersion)
+  MsgExtendedSysState(ExtendedSysState)
   MsgStatustext(Statustext)
+  MsgMavDebug(MavDebug)
   MsgLoggingAck(LoggingAck)
 } derive(Eq, @debug.Debug)
+pub fn MavMessage::base_payload_len(Self) -> Int32
 pub fn MavMessage::crc_extra(Self) -> Byte
 pub fn MavMessage::decode_from_frame(MavFrame) -> Result[Self, MavError]
 pub fn MavMessage::encode_payload(Self, v2? : Bool) -> Bytes
 pub fn MavMessage::encode_to_frame(Self, seq~ : Byte, sysid~ : Byte, compid~ : Byte, version? : ProtocolVersion, signing? : SigningContext?) -> Result[(Bytes, MavFrame), MavError]
 pub fn MavMessage::equal(Self, Self) -> Bool
+pub fn MavMessage::max_payload_len(Self) -> Int32
 pub fn MavMessage::msg_id(Self) -> UInt32
+pub fn MavMessage::msg_name(Self) -> String
 pub fn MavMessage::not_equal(Self, Self) -> Bool
 pub fn MavMessage::to_repr(Self) -> @debug.Repr
 
@@ -411,7 +704,11 @@ pub(all) enum MavMissionResult {
   MavMissionError
   MavMissionUnsupportedFrame
   MavMissionUnsupported
+  MavMissionNoSpace
+  MavMissionInvalid
   MavMissionInvalidSequence
+  MavMissionDenied
+  MavMissionOperationCancelled
 } derive(Eq, @debug.Debug)
 pub fn MavMissionResult::equal(Self, Self) -> Bool
 pub fn MavMissionResult::from_uint(UInt32) -> Self?
@@ -423,6 +720,7 @@ pub(all) enum MavMissionType {
   Mission
   Fence
   Rally
+  All
 } derive(Eq, @debug.Debug)
 pub fn MavMissionType::equal(Self, Self) -> Bool
 pub fn MavMissionType::from_uint(UInt32) -> Self?
@@ -432,9 +730,11 @@ pub fn MavMissionType::to_uint(Self) -> UInt32
 
 pub(all) enum MavModeFlag {
   CustomModeEnabled
+  TestEnabled
   AutoEnabled
   GuidedEnabled
   StabilizeEnabled
+  HilEnabled
   ManualInputEnabled
   SafetyArmed
 } derive(Eq, @debug.Debug)
@@ -443,6 +743,24 @@ pub fn MavModeFlag::from_uint(UInt32) -> Self?
 pub fn MavModeFlag::not_equal(Self, Self) -> Bool
 pub fn MavModeFlag::to_repr(Self) -> @debug.Repr
 pub fn MavModeFlag::to_uint(Self) -> UInt32
+
+pub(all) enum MavParamType {
+  Uint8
+  Int8
+  Uint16
+  Int16
+  Uint32
+  Int32
+  Uint64
+  Int64
+  Real32
+  Real64
+} derive(Eq, @debug.Debug)
+pub fn MavParamType::equal(Self, Self) -> Bool
+pub fn MavParamType::from_uint(UInt32) -> Self?
+pub fn MavParamType::not_equal(Self, Self) -> Bool
+pub fn MavParamType::to_repr(Self) -> @debug.Repr
+pub fn MavParamType::to_uint(Self) -> UInt32
 
 pub(all) enum MavPrimitiveType {
   UInt8
@@ -469,12 +787,27 @@ pub(all) enum MavResult {
   Unsupported
   Failed
   InProgress
+  Cancelled
 } derive(Eq, @debug.Debug)
 pub fn MavResult::equal(Self, Self) -> Bool
 pub fn MavResult::from_uint(UInt32) -> Self?
 pub fn MavResult::not_equal(Self, Self) -> Bool
 pub fn MavResult::to_repr(Self) -> @debug.Repr
 pub fn MavResult::to_uint(Self) -> UInt32
+
+pub(all) enum MavSensorOrientation {
+  MavSensorRotationNone
+  MavSensorRotationYaw45
+  MavSensorRotationYaw90
+  MavSensorRotationYaw180
+  MavSensorRotationYaw270
+  MavSensorRotationPitch270
+} derive(Eq, @debug.Debug)
+pub fn MavSensorOrientation::equal(Self, Self) -> Bool
+pub fn MavSensorOrientation::from_uint(UInt32) -> Self?
+pub fn MavSensorOrientation::not_equal(Self, Self) -> Bool
+pub fn MavSensorOrientation::to_repr(Self) -> @debug.Repr
+pub fn MavSensorOrientation::to_uint(Self) -> UInt32
 
 pub(all) enum MavSeverity {
   Emergency
@@ -509,6 +842,8 @@ pub(all) enum MavState {
   Active
   Critical
   Emergency
+  Poweroff
+  FlightTermination
 } derive(Eq, @debug.Debug)
 pub fn MavState::equal(Self, Self) -> Bool
 pub fn MavState::from_uint(UInt32) -> Self?
@@ -521,12 +856,30 @@ pub(all) enum MavType {
   FixedWing
   Quadrotor
   Gcs
+  GroundRover
+  Submarine
+  Hexarotor
+  Octorotor
+  VtolTailsitter
 } derive(Eq, @debug.Debug)
 pub fn MavType::equal(Self, Self) -> Bool
 pub fn MavType::from_uint(UInt32) -> Self?
 pub fn MavType::not_equal(Self, Self) -> Bool
 pub fn MavType::to_repr(Self) -> @debug.Repr
 pub fn MavType::to_uint(Self) -> UInt32
+
+pub(all) enum MavVtolState {
+  Undefined
+  TransitionToFw
+  TransitionToMc
+  Mc
+  Fw
+} derive(Eq, @debug.Debug)
+pub fn MavVtolState::equal(Self, Self) -> Bool
+pub fn MavVtolState::from_uint(UInt32) -> Self?
+pub fn MavVtolState::not_equal(Self, Self) -> Bool
+pub fn MavVtolState::to_repr(Self) -> @debug.Repr
+pub fn MavVtolState::to_uint(Self) -> UInt32
 
 pub(all) struct MissionAck {
   target_system : Byte
@@ -545,6 +898,21 @@ pub fn MissionAck::msg_id() -> UInt32
 pub fn MissionAck::not_equal(Self, Self) -> Bool
 pub fn MissionAck::to_repr(Self) -> @debug.Repr
 
+pub(all) struct MissionClearAll {
+  target_system : Byte
+  target_component : Byte
+  mission_type : Byte
+} derive(Eq, @debug.Debug)
+pub fn MissionClearAll::base_payload_len() -> Int32
+pub fn MissionClearAll::crc_extra() -> Byte
+pub fn MissionClearAll::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MissionClearAll::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MissionClearAll::equal(Self, Self) -> Bool
+pub fn MissionClearAll::max_payload_len() -> Int32
+pub fn MissionClearAll::msg_id() -> UInt32
+pub fn MissionClearAll::not_equal(Self, Self) -> Bool
+pub fn MissionClearAll::to_repr(Self) -> @debug.Repr
+
 pub(all) struct MissionCount {
   target_system : Byte
   target_component : Byte
@@ -561,6 +929,22 @@ pub fn MissionCount::max_payload_len() -> Int32
 pub fn MissionCount::msg_id() -> UInt32
 pub fn MissionCount::not_equal(Self, Self) -> Bool
 pub fn MissionCount::to_repr(Self) -> @debug.Repr
+
+pub(all) struct MissionCurrent {
+  seq : UInt32
+  total : UInt32
+  mission_state : Byte
+  mission_mode : Byte
+} derive(Eq, @debug.Debug)
+pub fn MissionCurrent::base_payload_len() -> Int32
+pub fn MissionCurrent::crc_extra() -> Byte
+pub fn MissionCurrent::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MissionCurrent::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MissionCurrent::equal(Self, Self) -> Bool
+pub fn MissionCurrent::max_payload_len() -> Int32
+pub fn MissionCurrent::msg_id() -> UInt32
+pub fn MissionCurrent::not_equal(Self, Self) -> Bool
+pub fn MissionCurrent::to_repr(Self) -> @debug.Repr
 
 pub(all) struct MissionItemInt {
   target_system : Byte
@@ -589,6 +973,35 @@ pub fn MissionItemInt::msg_id() -> UInt32
 pub fn MissionItemInt::not_equal(Self, Self) -> Bool
 pub fn MissionItemInt::to_repr(Self) -> @debug.Repr
 
+pub(all) struct MissionItemReached {
+  seq : UInt32
+} derive(Eq, @debug.Debug)
+pub fn MissionItemReached::base_payload_len() -> Int32
+pub fn MissionItemReached::crc_extra() -> Byte
+pub fn MissionItemReached::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MissionItemReached::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MissionItemReached::equal(Self, Self) -> Bool
+pub fn MissionItemReached::max_payload_len() -> Int32
+pub fn MissionItemReached::msg_id() -> UInt32
+pub fn MissionItemReached::not_equal(Self, Self) -> Bool
+pub fn MissionItemReached::to_repr(Self) -> @debug.Repr
+
+pub(all) struct MissionRequest {
+  target_system : Byte
+  target_component : Byte
+  seq : UInt32
+  mission_type : Byte
+} derive(Eq, @debug.Debug)
+pub fn MissionRequest::base_payload_len() -> Int32
+pub fn MissionRequest::crc_extra() -> Byte
+pub fn MissionRequest::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MissionRequest::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MissionRequest::equal(Self, Self) -> Bool
+pub fn MissionRequest::max_payload_len() -> Int32
+pub fn MissionRequest::msg_id() -> UInt32
+pub fn MissionRequest::not_equal(Self, Self) -> Bool
+pub fn MissionRequest::to_repr(Self) -> @debug.Repr
+
 pub(all) struct MissionRequestInt {
   target_system : Byte
   target_component : Byte
@@ -604,6 +1017,50 @@ pub fn MissionRequestInt::max_payload_len() -> Int32
 pub fn MissionRequestInt::msg_id() -> UInt32
 pub fn MissionRequestInt::not_equal(Self, Self) -> Bool
 pub fn MissionRequestInt::to_repr(Self) -> @debug.Repr
+
+pub(all) struct MissionRequestList {
+  target_system : Byte
+  target_component : Byte
+  mission_type : Byte
+} derive(Eq, @debug.Debug)
+pub fn MissionRequestList::base_payload_len() -> Int32
+pub fn MissionRequestList::crc_extra() -> Byte
+pub fn MissionRequestList::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MissionRequestList::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MissionRequestList::equal(Self, Self) -> Bool
+pub fn MissionRequestList::max_payload_len() -> Int32
+pub fn MissionRequestList::msg_id() -> UInt32
+pub fn MissionRequestList::not_equal(Self, Self) -> Bool
+pub fn MissionRequestList::to_repr(Self) -> @debug.Repr
+
+pub(all) struct MissionSetCurrent {
+  target_system : Byte
+  target_component : Byte
+  seq : UInt32
+} derive(Eq, @debug.Debug)
+pub fn MissionSetCurrent::base_payload_len() -> Int32
+pub fn MissionSetCurrent::crc_extra() -> Byte
+pub fn MissionSetCurrent::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn MissionSetCurrent::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn MissionSetCurrent::equal(Self, Self) -> Bool
+pub fn MissionSetCurrent::max_payload_len() -> Int32
+pub fn MissionSetCurrent::msg_id() -> UInt32
+pub fn MissionSetCurrent::not_equal(Self, Self) -> Bool
+pub fn MissionSetCurrent::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ParamRequestList {
+  target_system : Byte
+  target_component : Byte
+} derive(Eq, @debug.Debug)
+pub fn ParamRequestList::base_payload_len() -> Int32
+pub fn ParamRequestList::crc_extra() -> Byte
+pub fn ParamRequestList::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn ParamRequestList::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn ParamRequestList::equal(Self, Self) -> Bool
+pub fn ParamRequestList::max_payload_len() -> Int32
+pub fn ParamRequestList::msg_id() -> UInt32
+pub fn ParamRequestList::not_equal(Self, Self) -> Bool
+pub fn ParamRequestList::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ParamRequestRead {
   target_system : Byte
@@ -733,6 +1190,63 @@ pub fn ProtocolVersion::equal(Self, Self) -> Bool
 pub fn ProtocolVersion::not_equal(Self, Self) -> Bool
 pub fn ProtocolVersion::to_repr(Self) -> @debug.Repr
 
+pub(all) struct RawImu {
+  time_usec : UInt64
+  xacc : Int32
+  yacc : Int32
+  zacc : Int32
+  xgyro : Int32
+  ygyro : Int32
+  zgyro : Int32
+  xmag : Int32
+  ymag : Int32
+  zmag : Int32
+  id : Byte
+  temperature : Int32
+} derive(Eq, @debug.Debug)
+pub fn RawImu::base_payload_len() -> Int32
+pub fn RawImu::crc_extra() -> Byte
+pub fn RawImu::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn RawImu::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn RawImu::equal(Self, Self) -> Bool
+pub fn RawImu::max_payload_len() -> Int32
+pub fn RawImu::msg_id() -> UInt32
+pub fn RawImu::not_equal(Self, Self) -> Bool
+pub fn RawImu::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RcChannels {
+  time_boot_ms : UInt32
+  chancount : Byte
+  chan1_raw : UInt32
+  chan2_raw : UInt32
+  chan3_raw : UInt32
+  chan4_raw : UInt32
+  chan5_raw : UInt32
+  chan6_raw : UInt32
+  chan7_raw : UInt32
+  chan8_raw : UInt32
+  chan9_raw : UInt32
+  chan10_raw : UInt32
+  chan11_raw : UInt32
+  chan12_raw : UInt32
+  chan13_raw : UInt32
+  chan14_raw : UInt32
+  chan15_raw : UInt32
+  chan16_raw : UInt32
+  chan17_raw : UInt32
+  chan18_raw : UInt32
+  rssi : Byte
+} derive(Eq, @debug.Debug)
+pub fn RcChannels::base_payload_len() -> Int32
+pub fn RcChannels::crc_extra() -> Byte
+pub fn RcChannels::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn RcChannels::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn RcChannels::equal(Self, Self) -> Bool
+pub fn RcChannels::max_payload_len() -> Int32
+pub fn RcChannels::msg_id() -> UInt32
+pub fn RcChannels::not_equal(Self, Self) -> Bool
+pub fn RcChannels::to_repr(Self) -> @debug.Repr
+
 pub(all) struct RcChannelsRaw {
   time_boot_ms : UInt32
   port : Byte
@@ -755,6 +1269,112 @@ pub fn RcChannelsRaw::max_payload_len() -> Int32
 pub fn RcChannelsRaw::msg_id() -> UInt32
 pub fn RcChannelsRaw::not_equal(Self, Self) -> Bool
 pub fn RcChannelsRaw::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ScaledImu {
+  time_boot_ms : UInt32
+  xacc : Int32
+  yacc : Int32
+  zacc : Int32
+  xgyro : Int32
+  ygyro : Int32
+  zgyro : Int32
+  xmag : Int32
+  ymag : Int32
+  zmag : Int32
+  temperature : Int32
+} derive(Eq, @debug.Debug)
+pub fn ScaledImu::base_payload_len() -> Int32
+pub fn ScaledImu::crc_extra() -> Byte
+pub fn ScaledImu::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn ScaledImu::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn ScaledImu::equal(Self, Self) -> Bool
+pub fn ScaledImu::max_payload_len() -> Int32
+pub fn ScaledImu::msg_id() -> UInt32
+pub fn ScaledImu::not_equal(Self, Self) -> Bool
+pub fn ScaledImu::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ScaledPressure {
+  time_boot_ms : UInt32
+  press_abs : Float
+  press_diff : Float
+  temperature : Int32
+  temperature_press_diff : Int32
+} derive(Eq, @debug.Debug)
+pub fn ScaledPressure::base_payload_len() -> Int32
+pub fn ScaledPressure::crc_extra() -> Byte
+pub fn ScaledPressure::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn ScaledPressure::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn ScaledPressure::equal(Self, Self) -> Bool
+pub fn ScaledPressure::max_payload_len() -> Int32
+pub fn ScaledPressure::msg_id() -> UInt32
+pub fn ScaledPressure::not_equal(Self, Self) -> Bool
+pub fn ScaledPressure::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ServoOutputRaw {
+  time_usec : UInt32
+  port : Byte
+  servo1_raw : UInt32
+  servo2_raw : UInt32
+  servo3_raw : UInt32
+  servo4_raw : UInt32
+  servo5_raw : UInt32
+  servo6_raw : UInt32
+  servo7_raw : UInt32
+  servo8_raw : UInt32
+  servo9_raw : UInt32
+  servo10_raw : UInt32
+  servo11_raw : UInt32
+  servo12_raw : UInt32
+  servo13_raw : UInt32
+  servo14_raw : UInt32
+  servo15_raw : UInt32
+  servo16_raw : UInt32
+} derive(Eq, @debug.Debug)
+pub fn ServoOutputRaw::base_payload_len() -> Int32
+pub fn ServoOutputRaw::crc_extra() -> Byte
+pub fn ServoOutputRaw::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn ServoOutputRaw::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn ServoOutputRaw::equal(Self, Self) -> Bool
+pub fn ServoOutputRaw::max_payload_len() -> Int32
+pub fn ServoOutputRaw::msg_id() -> UInt32
+pub fn ServoOutputRaw::not_equal(Self, Self) -> Bool
+pub fn ServoOutputRaw::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SetAttitudeTarget {
+  time_boot_ms : UInt32
+  target_system : Byte
+  target_component : Byte
+  type_mask : Byte
+  q : FixedArray[Float]
+  body_roll_rate : Float
+  body_pitch_rate : Float
+  body_yaw_rate : Float
+  thrust : Float
+} derive(Eq, @debug.Debug)
+pub fn SetAttitudeTarget::base_payload_len() -> Int32
+pub fn SetAttitudeTarget::crc_extra() -> Byte
+pub fn SetAttitudeTarget::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn SetAttitudeTarget::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn SetAttitudeTarget::equal(Self, Self) -> Bool
+pub fn SetAttitudeTarget::max_payload_len() -> Int32
+pub fn SetAttitudeTarget::msg_id() -> UInt32
+pub fn SetAttitudeTarget::not_equal(Self, Self) -> Bool
+pub fn SetAttitudeTarget::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SetMode {
+  target_system : Byte
+  base_mode : Byte
+  custom_mode : UInt32
+} derive(Eq, @debug.Debug)
+pub fn SetMode::base_payload_len() -> Int32
+pub fn SetMode::crc_extra() -> Byte
+pub fn SetMode::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn SetMode::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn SetMode::equal(Self, Self) -> Bool
+pub fn SetMode::max_payload_len() -> Int32
+pub fn SetMode::msg_id() -> UInt32
+pub fn SetMode::not_equal(Self, Self) -> Bool
+pub fn SetMode::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SigningContext {
   secret_key : FixedArray[Byte]
@@ -822,6 +1442,40 @@ pub fn SystemTime::max_payload_len() -> Int32
 pub fn SystemTime::msg_id() -> UInt32
 pub fn SystemTime::not_equal(Self, Self) -> Bool
 pub fn SystemTime::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Timesync {
+  tc1 : Int64
+  ts1 : Int64
+  target_system : Byte
+  target_component : Byte
+} derive(Eq, @debug.Debug)
+pub fn Timesync::base_payload_len() -> Int32
+pub fn Timesync::crc_extra() -> Byte
+pub fn Timesync::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn Timesync::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn Timesync::equal(Self, Self) -> Bool
+pub fn Timesync::max_payload_len() -> Int32
+pub fn Timesync::msg_id() -> UInt32
+pub fn Timesync::not_equal(Self, Self) -> Bool
+pub fn Timesync::to_repr(Self) -> @debug.Repr
+
+pub(all) struct VfrHud {
+  airspeed : Float
+  groundspeed : Float
+  heading : Int32
+  throttle : UInt32
+  alt : Float
+  climb : Float
+} derive(Eq, @debug.Debug)
+pub fn VfrHud::base_payload_len() -> Int32
+pub fn VfrHud::crc_extra() -> Byte
+pub fn VfrHud::decode_payload(Bytes, v2? : Bool) -> Result[Self, MavError]
+pub fn VfrHud::encode_payload(Self, v2? : Bool) -> Bytes
+pub fn VfrHud::equal(Self, Self) -> Bool
+pub fn VfrHud::max_payload_len() -> Int32
+pub fn VfrHud::msg_id() -> UInt32
+pub fn VfrHud::not_equal(Self, Self) -> Bool
+pub fn VfrHud::to_repr(Self) -> @debug.Repr
 
 pub(all) struct X25Crc {
   mut value : UInt32

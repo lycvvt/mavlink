@@ -805,3 +805,211 @@ pub fn parse_dialect_xml(xml_text : String) -> Result[DialectSchema, MavError] {
 
   Ok({ version, dialect, includes, enums, messages, })
 }
+
+///|
+/// Merge an included `base` `DialectSchema` with an extending `child` `DialectSchema`
+/// according to the official MAVLink `<include>` inheritance rules:
+/// - Enums with the same name have their entries merged; conflicting entry values with
+///   different names return `Err(SchemaError(_))`.
+/// - Messages from `base` and `child` are combined; duplicate message IDs across files
+///   return `Err(SchemaError(_))`.
+pub fn merge_dialect_schemas(
+  base : DialectSchema,
+  child : DialectSchema,
+) -> Result[DialectSchema, MavError] {
+  let merged_enums : Array[XmlEnumDef] = []
+  for en in base.enums {
+    let entries_copy : Array[XmlEnumEntry] = []
+    for e in en.entries {
+      entries_copy.push(e)
+    }
+    merged_enums.push({
+      name: en.name,
+      bitmask: en.bitmask,
+      description: en.description,
+      entries: entries_copy,
+    })
+  }
+
+  for child_en in child.enums {
+    let mut existing_idx = -1
+    for i = 0; i < merged_enums.length(); i = i + 1 {
+      if merged_enums[i].name == child_en.name {
+        existing_idx = i
+        break
+      }
+    }
+    if existing_idx < 0 {
+      merged_enums.push(child_en)
+    } else {
+      let target = merged_enums[existing_idx]
+      let combined_entries : Array[XmlEnumEntry] = []
+      for e in target.entries {
+        combined_entries.push(e)
+      }
+      for ce in child_en.entries {
+        let mut already_present = false
+        for ee in combined_entries {
+          if ee.name == ce.name {
+            if ee.value != ce.value {
+              return Err(
+                SchemaError(
+                  "Conflicting enum entry value in merged enum " +
+                  child_en.name +
+                  ": " +
+                  ce.name,
+                ),
+              )
+            }
+            already_present = true
+            break
+          }
+        }
+        if !already_present {
+          combined_entries.push(ce)
+        }
+      }
+      let desc = if child_en.description != "" {
+        child_en.description
+      } else {
+        target.description
+      }
+      merged_enums[existing_idx] = {
+        name: target.name,
+        bitmask: target.bitmask || child_en.bitmask,
+        description: desc,
+        entries: combined_entries,
+      }
+    }
+  }
+
+  let merged_messages : Array[XmlMessageDef] = []
+  for m in base.messages {
+    merged_messages.push(m)
+  }
+  for cm in child.messages {
+    for em in merged_messages {
+      if em.id == cm.id {
+        return Err(
+          SchemaError(
+            "Duplicate message id across included dialect XML: " +
+            cm.name +
+            " vs " +
+            em.name,
+          ),
+        )
+      }
+      if em.name == cm.name {
+        return Err(
+          SchemaError(
+            "Duplicate message name across included dialect XML: " + cm.name,
+          ),
+        )
+      }
+    }
+    merged_messages.push(cm)
+  }
+
+  let merged_includes : Array[String] = []
+  for inc in base.includes {
+    merged_includes.push(inc)
+  }
+  for inc in child.includes {
+    let mut seen = false
+    for existing in merged_includes {
+      if existing == inc {
+        seen = true
+        break
+      }
+    }
+    if !seen {
+      merged_includes.push(inc)
+    }
+  }
+
+  let ver = if child.version != 0 { child.version } else { base.version }
+  let dial = if child.dialect != 0 { child.dialect } else { base.dialect }
+  Ok({
+    version: ver,
+    dialect: dial,
+    includes: merged_includes,
+    enums: merged_enums,
+    messages: merged_messages,
+  })
+}
+
+///|
+fn resolve_includes_recursive(
+  file_name : String,
+  xml_resolver : (String) -> String?,
+  visiting : Array[String],
+  resolved_names : Array[String],
+  acc_schema : DialectSchema,
+) -> Result[DialectSchema, MavError] {
+  for v in visiting {
+    if v == file_name {
+      return Err(
+        SchemaError("Cyclic <include> detected in MAVLink XML: " + file_name),
+      )
+    }
+  }
+  for r in resolved_names {
+    if r == file_name {
+      return Ok(acc_schema)
+    }
+  }
+
+  let xml_text = match xml_resolver(file_name) {
+    Some(t) => t
+    None =>
+      return Err(
+        SchemaError("Unable to resolve <include> XML file: " + file_name),
+      )
+  }
+  let current_schema = match parse_dialect_xml(xml_text) {
+    Ok(s) => s
+    Err(e) => return Err(e)
+  }
+
+  visiting.push(file_name)
+  let mut merged = acc_schema
+  for inc_name in current_schema.includes {
+    match
+      resolve_includes_recursive(
+        inc_name, xml_resolver, visiting, resolved_names, merged,
+      ) {
+      Ok(next_schema) => merged = next_schema
+      Err(e) => return Err(e)
+    }
+  }
+  let _ = visiting.pop()
+  resolved_names.push(file_name)
+
+  merge_dialect_schemas(merged, current_schema)
+}
+
+///|
+/// Recursively parse a root MAVLink XML dialect and all transitive `<include>` files
+/// using `xml_resolver(file_name) -> String?`.
+///
+/// Features:
+/// - Depth-first topological `<include>` resolution (e.g. `ardupilotmega.xml` -> `common.xml` -> `minimal.xml`)
+/// - Diamond dependency deduplication (shared base files like `minimal.xml` are merged only once)
+/// - Deterministic cycle detection (`a.xml` -> `b.xml` -> `a.xml` returns `Err(SchemaError(_))`)
+pub fn parse_dialect_xml_with_includes(
+  root_file_name : String,
+  xml_resolver : (String) -> String?,
+) -> Result[DialectSchema, MavError] {
+  let empty_schema : DialectSchema = {
+    version: 3,
+    dialect: 0,
+    includes: [],
+    enums: [],
+    messages: [],
+  }
+  let visiting : Array[String] = []
+  let resolved_names : Array[String] = []
+  resolve_includes_recursive(
+    root_file_name, xml_resolver, visiting, resolved_names, empty_schema,
+  )
+}

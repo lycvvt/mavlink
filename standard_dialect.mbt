@@ -48,6 +48,11 @@ pub(all) enum MavType {
   FixedWing
   Quadrotor
   Gcs
+  GroundRover
+  Submarine
+  Hexarotor
+  Octorotor
+  VtolTailsitter
 } derive(Eq, Debug)
 
 ///|
@@ -64,6 +69,11 @@ pub fn MavType::to_uint(self : MavType) -> UInt32 {
     FixedWing => 1U
     Quadrotor => 2U
     Gcs => 6U
+    GroundRover => 10U
+    Submarine => 12U
+    Hexarotor => 13U
+    Octorotor => 14U
+    VtolTailsitter => 22U
   }
 }
 
@@ -75,6 +85,11 @@ pub fn MavType::from_uint(v : UInt32) -> MavType? {
     1U => Some(FixedWing)
     2U => Some(Quadrotor)
     6U => Some(Gcs)
+    10U => Some(GroundRover)
+    12U => Some(Submarine)
+    13U => Some(Hexarotor)
+    14U => Some(Octorotor)
+    22U => Some(VtolTailsitter)
     _ => None
   }
 }
@@ -83,9 +98,11 @@ pub fn MavType::from_uint(v : UInt32) -> MavType? {
 /// These flags encode the MAV mode.
 pub(all) enum MavModeFlag {
   CustomModeEnabled
+  TestEnabled
   AutoEnabled
   GuidedEnabled
   StabilizeEnabled
+  HilEnabled
   ManualInputEnabled
   SafetyArmed
 } derive(Eq, Debug)
@@ -101,9 +118,11 @@ pub extend MavModeFlag with @debug.Debug::{to_repr}
 pub fn MavModeFlag::to_uint(self : MavModeFlag) -> UInt32 {
   match self {
     CustomModeEnabled => 1U
+    TestEnabled => 2U
     AutoEnabled => 4U
     GuidedEnabled => 8U
     StabilizeEnabled => 16U
+    HilEnabled => 32U
     ManualInputEnabled => 64U
     SafetyArmed => 128U
   }
@@ -114,9 +133,11 @@ pub fn MavModeFlag::to_uint(self : MavModeFlag) -> UInt32 {
 pub fn MavModeFlag::from_uint(v : UInt32) -> MavModeFlag? {
   match v {
     1U => Some(CustomModeEnabled)
+    2U => Some(TestEnabled)
     4U => Some(AutoEnabled)
     8U => Some(GuidedEnabled)
     16U => Some(StabilizeEnabled)
+    32U => Some(HilEnabled)
     64U => Some(ManualInputEnabled)
     128U => Some(SafetyArmed)
     _ => None
@@ -133,6 +154,8 @@ pub(all) enum MavState {
   Active
   Critical
   Emergency
+  Poweroff
+  FlightTermination
 } derive(Eq, Debug)
 
 ///|
@@ -152,6 +175,8 @@ pub fn MavState::to_uint(self : MavState) -> UInt32 {
     Active => 4U
     Critical => 5U
     Emergency => 6U
+    Poweroff => 7U
+    FlightTermination => 8U
   }
 }
 
@@ -166,6 +191,55 @@ pub fn MavState::from_uint(v : UInt32) -> MavState? {
     4U => Some(Active)
     5U => Some(Critical)
     6U => Some(Emergency)
+    7U => Some(Poweroff)
+    8U => Some(FlightTermination)
+    _ => None
+  }
+}
+
+///|
+/// Component ids (values) for the different types and instances of onboard hardware/software.
+pub(all) enum MavComponent {
+  MavCompIdAll
+  MavCompIdAutopilot1
+  MavCompIdCamera
+  MavCompIdGimbal
+  MavCompIdMissionplanner
+  MavCompIdOnboardComputer
+  MavCompIdGps
+} derive(Eq, Debug)
+
+///|
+pub extend MavComponent with Eq::{not_equal, equal}
+
+///|
+pub extend MavComponent with @debug.Debug::{to_repr}
+
+///|
+/// Convert `MavComponent` to its raw MAVLink numeric value.
+pub fn MavComponent::to_uint(self : MavComponent) -> UInt32 {
+  match self {
+    MavCompIdAll => 0U
+    MavCompIdAutopilot1 => 1U
+    MavCompIdCamera => 100U
+    MavCompIdGimbal => 154U
+    MavCompIdMissionplanner => 190U
+    MavCompIdOnboardComputer => 191U
+    MavCompIdGps => 220U
+  }
+}
+
+///|
+/// Decode `MavComponent` from its raw MAVLink numeric value.
+pub fn MavComponent::from_uint(v : UInt32) -> MavComponent? {
+  match v {
+    0U => Some(MavCompIdAll)
+    1U => Some(MavCompIdAutopilot1)
+    100U => Some(MavCompIdCamera)
+    154U => Some(MavCompIdGimbal)
+    190U => Some(MavCompIdMissionplanner)
+    191U => Some(MavCompIdOnboardComputer)
+    220U => Some(MavCompIdGps)
     _ => None
   }
 }
@@ -174,11 +248,17 @@ pub fn MavState::from_uint(v : UInt32) -> MavState? {
 /// Commands to be executed by the MAV.
 pub(all) enum MavCmd {
   NavWaypoint
+  NavLoiterUnlim
   NavReturnToLaunch
   NavLand
   NavTakeoff
+  DoSetMode
+  DoChangeSpeed
+  DoSetServo
   ComponentArmDisarm
+  SetMessageInterval
   RequestMessage
+  RequestAutopilotCapabilities
 } derive(Eq, Debug)
 
 ///|
@@ -192,11 +272,17 @@ pub extend MavCmd with @debug.Debug::{to_repr}
 pub fn MavCmd::to_uint(self : MavCmd) -> UInt32 {
   match self {
     NavWaypoint => 16U
+    NavLoiterUnlim => 17U
     NavReturnToLaunch => 20U
     NavLand => 21U
     NavTakeoff => 22U
+    DoSetMode => 176U
+    DoChangeSpeed => 178U
+    DoSetServo => 183U
     ComponentArmDisarm => 400U
+    SetMessageInterval => 511U
     RequestMessage => 512U
+    RequestAutopilotCapabilities => 520U
   }
 }
 
@@ -205,11 +291,17 @@ pub fn MavCmd::to_uint(self : MavCmd) -> UInt32 {
 pub fn MavCmd::from_uint(v : UInt32) -> MavCmd? {
   match v {
     16U => Some(NavWaypoint)
+    17U => Some(NavLoiterUnlim)
     20U => Some(NavReturnToLaunch)
     21U => Some(NavLand)
     22U => Some(NavTakeoff)
+    176U => Some(DoSetMode)
+    178U => Some(DoChangeSpeed)
+    183U => Some(DoSetServo)
     400U => Some(ComponentArmDisarm)
+    511U => Some(SetMessageInterval)
     512U => Some(RequestMessage)
+    520U => Some(RequestAutopilotCapabilities)
     _ => None
   }
 }
@@ -223,6 +315,7 @@ pub(all) enum MavResult {
   Unsupported
   Failed
   InProgress
+  Cancelled
 } derive(Eq, Debug)
 
 ///|
@@ -241,6 +334,7 @@ pub fn MavResult::to_uint(self : MavResult) -> UInt32 {
     Unsupported => 3U
     Failed => 4U
     InProgress => 5U
+    Cancelled => 6U
   }
 }
 
@@ -254,6 +348,7 @@ pub fn MavResult::from_uint(v : UInt32) -> MavResult? {
     3U => Some(Unsupported)
     4U => Some(Failed)
     5U => Some(InProgress)
+    6U => Some(Cancelled)
     _ => None
   }
 }
@@ -360,9 +455,12 @@ pub fn GpsFixType::from_uint(v : UInt32) -> GpsFixType? {
 pub(all) enum MavCoordFrame {
   Global
   LocalNed
+  Mission
   GlobalRelativeAlt
+  LocalEnu
   GlobalInt
   GlobalRelativeAltInt
+  BodyNed
 } derive(Eq, Debug)
 
 ///|
@@ -377,9 +475,12 @@ pub fn MavCoordFrame::to_uint(self : MavCoordFrame) -> UInt32 {
   match self {
     Global => 0U
     LocalNed => 1U
+    Mission => 2U
     GlobalRelativeAlt => 3U
+    LocalEnu => 4U
     GlobalInt => 5U
     GlobalRelativeAltInt => 6U
+    BodyNed => 8U
   }
 }
 
@@ -389,9 +490,12 @@ pub fn MavCoordFrame::from_uint(v : UInt32) -> MavCoordFrame? {
   match v {
     0U => Some(Global)
     1U => Some(LocalNed)
+    2U => Some(Mission)
     3U => Some(GlobalRelativeAlt)
+    4U => Some(LocalEnu)
     5U => Some(GlobalInt)
     6U => Some(GlobalRelativeAltInt)
+    8U => Some(BodyNed)
     _ => None
   }
 }
@@ -403,7 +507,11 @@ pub(all) enum MavMissionResult {
   MavMissionError
   MavMissionUnsupportedFrame
   MavMissionUnsupported
+  MavMissionNoSpace
+  MavMissionInvalid
   MavMissionInvalidSequence
+  MavMissionDenied
+  MavMissionOperationCancelled
 } derive(Eq, Debug)
 
 ///|
@@ -420,7 +528,11 @@ pub fn MavMissionResult::to_uint(self : MavMissionResult) -> UInt32 {
     MavMissionError => 1U
     MavMissionUnsupportedFrame => 2U
     MavMissionUnsupported => 3U
+    MavMissionNoSpace => 4U
+    MavMissionInvalid => 5U
     MavMissionInvalidSequence => 13U
+    MavMissionDenied => 14U
+    MavMissionOperationCancelled => 15U
   }
 }
 
@@ -432,7 +544,11 @@ pub fn MavMissionResult::from_uint(v : UInt32) -> MavMissionResult? {
     1U => Some(MavMissionError)
     2U => Some(MavMissionUnsupportedFrame)
     3U => Some(MavMissionUnsupported)
+    4U => Some(MavMissionNoSpace)
+    5U => Some(MavMissionInvalid)
     13U => Some(MavMissionInvalidSequence)
+    14U => Some(MavMissionDenied)
+    15U => Some(MavMissionOperationCancelled)
     _ => None
   }
 }
@@ -443,6 +559,7 @@ pub(all) enum MavMissionType {
   Mission
   Fence
   Rally
+  All
 } derive(Eq, Debug)
 
 ///|
@@ -458,6 +575,7 @@ pub fn MavMissionType::to_uint(self : MavMissionType) -> UInt32 {
     Mission => 0U
     Fence => 1U
     Rally => 2U
+    All => 255U
   }
 }
 
@@ -468,6 +586,283 @@ pub fn MavMissionType::from_uint(v : UInt32) -> MavMissionType? {
     0U => Some(Mission)
     1U => Some(Fence)
     2U => Some(Rally)
+    255U => Some(All)
+    _ => None
+  }
+}
+
+///|
+/// Specifies the datatype of a MAVLink parameter.
+pub(all) enum MavParamType {
+  Uint8
+  Int8
+  Uint16
+  Int16
+  Uint32
+  Int32
+  Uint64
+  Int64
+  Real32
+  Real64
+} derive(Eq, Debug)
+
+///|
+pub extend MavParamType with Eq::{not_equal, equal}
+
+///|
+pub extend MavParamType with @debug.Debug::{to_repr}
+
+///|
+/// Convert `MavParamType` to its raw MAVLink numeric value.
+pub fn MavParamType::to_uint(self : MavParamType) -> UInt32 {
+  match self {
+    Uint8 => 1U
+    Int8 => 2U
+    Uint16 => 3U
+    Int16 => 4U
+    Uint32 => 5U
+    Int32 => 6U
+    Uint64 => 7U
+    Int64 => 8U
+    Real32 => 9U
+    Real64 => 10U
+  }
+}
+
+///|
+/// Decode `MavParamType` from its raw MAVLink numeric value.
+pub fn MavParamType::from_uint(v : UInt32) -> MavParamType? {
+  match v {
+    1U => Some(Uint8)
+    2U => Some(Int8)
+    3U => Some(Uint16)
+    4U => Some(Int16)
+    5U => Some(Uint32)
+    6U => Some(Int32)
+    7U => Some(Uint64)
+    8U => Some(Int64)
+    9U => Some(Real32)
+    10U => Some(Real64)
+    _ => None
+  }
+}
+
+///|
+/// Data stream IDs for telemetry rate configuration.
+pub(all) enum MavDataStream {
+  All
+  RawSensors
+  ExtendedStatus
+  RcChannels
+  RawController
+  Position
+  Extra1
+  Extra2
+  Extra3
+} derive(Eq, Debug)
+
+///|
+pub extend MavDataStream with Eq::{not_equal, equal}
+
+///|
+pub extend MavDataStream with @debug.Debug::{to_repr}
+
+///|
+/// Convert `MavDataStream` to its raw MAVLink numeric value.
+pub fn MavDataStream::to_uint(self : MavDataStream) -> UInt32 {
+  match self {
+    All => 0U
+    RawSensors => 1U
+    ExtendedStatus => 2U
+    RcChannels => 3U
+    RawController => 4U
+    Position => 6U
+    Extra1 => 10U
+    Extra2 => 11U
+    Extra3 => 12U
+  }
+}
+
+///|
+/// Decode `MavDataStream` from its raw MAVLink numeric value.
+pub fn MavDataStream::from_uint(v : UInt32) -> MavDataStream? {
+  match v {
+    0U => Some(All)
+    1U => Some(RawSensors)
+    2U => Some(ExtendedStatus)
+    3U => Some(RcChannels)
+    4U => Some(RawController)
+    6U => Some(Position)
+    10U => Some(Extra1)
+    11U => Some(Extra2)
+    12U => Some(Extra3)
+    _ => None
+  }
+}
+
+///|
+/// Enumeration of distance sensor types.
+pub(all) enum MavDistanceSensor {
+  Laser
+  Ultrasound
+  Infrared
+  Radar
+  Unknown
+} derive(Eq, Debug)
+
+///|
+pub extend MavDistanceSensor with Eq::{not_equal, equal}
+
+///|
+pub extend MavDistanceSensor with @debug.Debug::{to_repr}
+
+///|
+/// Convert `MavDistanceSensor` to its raw MAVLink numeric value.
+pub fn MavDistanceSensor::to_uint(self : MavDistanceSensor) -> UInt32 {
+  match self {
+    Laser => 0U
+    Ultrasound => 1U
+    Infrared => 2U
+    Radar => 3U
+    Unknown => 4U
+  }
+}
+
+///|
+/// Decode `MavDistanceSensor` from its raw MAVLink numeric value.
+pub fn MavDistanceSensor::from_uint(v : UInt32) -> MavDistanceSensor? {
+  match v {
+    0U => Some(Laser)
+    1U => Some(Ultrasound)
+    2U => Some(Infrared)
+    3U => Some(Radar)
+    4U => Some(Unknown)
+    _ => None
+  }
+}
+
+///|
+/// Enumeration of sensor orientation, according to its rotations.
+pub(all) enum MavSensorOrientation {
+  MavSensorRotationNone
+  MavSensorRotationYaw45
+  MavSensorRotationYaw90
+  MavSensorRotationYaw180
+  MavSensorRotationYaw270
+  MavSensorRotationPitch270
+} derive(Eq, Debug)
+
+///|
+pub extend MavSensorOrientation with Eq::{not_equal, equal}
+
+///|
+pub extend MavSensorOrientation with @debug.Debug::{to_repr}
+
+///|
+/// Convert `MavSensorOrientation` to its raw MAVLink numeric value.
+pub fn MavSensorOrientation::to_uint(self : MavSensorOrientation) -> UInt32 {
+  match self {
+    MavSensorRotationNone => 0U
+    MavSensorRotationYaw45 => 1U
+    MavSensorRotationYaw90 => 2U
+    MavSensorRotationYaw180 => 4U
+    MavSensorRotationYaw270 => 6U
+    MavSensorRotationPitch270 => 25U
+  }
+}
+
+///|
+/// Decode `MavSensorOrientation` from its raw MAVLink numeric value.
+pub fn MavSensorOrientation::from_uint(v : UInt32) -> MavSensorOrientation? {
+  match v {
+    0U => Some(MavSensorRotationNone)
+    1U => Some(MavSensorRotationYaw45)
+    2U => Some(MavSensorRotationYaw90)
+    4U => Some(MavSensorRotationYaw180)
+    6U => Some(MavSensorRotationYaw270)
+    25U => Some(MavSensorRotationPitch270)
+    _ => None
+  }
+}
+
+///|
+/// Enumeration of landed detector states.
+pub(all) enum MavLandedState {
+  Undefined
+  OnGround
+  InAir
+  Takeoff
+  Landing
+} derive(Eq, Debug)
+
+///|
+pub extend MavLandedState with Eq::{not_equal, equal}
+
+///|
+pub extend MavLandedState with @debug.Debug::{to_repr}
+
+///|
+/// Convert `MavLandedState` to its raw MAVLink numeric value.
+pub fn MavLandedState::to_uint(self : MavLandedState) -> UInt32 {
+  match self {
+    Undefined => 0U
+    OnGround => 1U
+    InAir => 2U
+    Takeoff => 3U
+    Landing => 4U
+  }
+}
+
+///|
+/// Decode `MavLandedState` from its raw MAVLink numeric value.
+pub fn MavLandedState::from_uint(v : UInt32) -> MavLandedState? {
+  match v {
+    0U => Some(Undefined)
+    1U => Some(OnGround)
+    2U => Some(InAir)
+    3U => Some(Takeoff)
+    4U => Some(Landing)
+    _ => None
+  }
+}
+
+///|
+/// Enumeration of VTOL states.
+pub(all) enum MavVtolState {
+  Undefined
+  TransitionToFw
+  TransitionToMc
+  Mc
+  Fw
+} derive(Eq, Debug)
+
+///|
+pub extend MavVtolState with Eq::{not_equal, equal}
+
+///|
+pub extend MavVtolState with @debug.Debug::{to_repr}
+
+///|
+/// Convert `MavVtolState` to its raw MAVLink numeric value.
+pub fn MavVtolState::to_uint(self : MavVtolState) -> UInt32 {
+  match self {
+    Undefined => 0U
+    TransitionToFw => 1U
+    TransitionToMc => 2U
+    Mc => 3U
+    Fw => 4U
+  }
+}
+
+///|
+/// Decode `MavVtolState` from its raw MAVLink numeric value.
+pub fn MavVtolState::from_uint(v : UInt32) -> MavVtolState? {
+  match v {
+    0U => Some(Undefined)
+    1U => Some(TransitionToFw)
+    2U => Some(TransitionToMc)
+    3U => Some(Mc)
+    4U => Some(Fw)
     _ => None
   }
 }
@@ -513,44 +908,44 @@ pub fn Heartbeat::max_payload_len() -> Int32 {
 ///|
 /// Serialize `Heartbeat` into wire-ordered little-endian payload bytes.
 pub fn Heartbeat::encode_payload(self : Heartbeat, v2~ : Bool = true) -> Bytes {
-  let w = PayloadWriter::new(capacity=9)
-  w.write_uint32(self.custom_mode)
-  w.write_uint8(self.mav_type)
-  w.write_uint8(self.autopilot)
-  w.write_uint8(self.base_mode)
-  w.write_uint8(self.system_status)
-  w.write_uint8(self.mavlink_version)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=9)
+  writer_.write_uint32(self.custom_mode)
+  writer_.write_uint8(self.mav_type)
+  writer_.write_uint8(self.autopilot)
+  writer_.write_uint8(self.base_mode)
+  writer_.write_uint8(self.system_status)
+  writer_.write_uint8(self.mavlink_version)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `Heartbeat` from wire-ordered little-endian payload bytes.
 pub fn Heartbeat::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[Heartbeat, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let custom_mode = match r.read_uint32() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let custom_mode = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let mav_type = match r.read_uint8() {
+  let mav_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let autopilot = match r.read_uint8() {
+  let autopilot = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let base_mode = match r.read_uint8() {
+  let base_mode = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let system_status = match r.read_uint8() {
+  let system_status = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let mavlink_version = match r.read_uint8() {
+  let mavlink_version = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -612,79 +1007,79 @@ pub fn SysStatus::max_payload_len() -> Int32 {
 ///|
 /// Serialize `SysStatus` into wire-ordered little-endian payload bytes.
 pub fn SysStatus::encode_payload(self : SysStatus, v2~ : Bool = true) -> Bytes {
-  let w = PayloadWriter::new(capacity=31)
-  w.write_uint32(self.onboard_control_sensors_present)
-  w.write_uint32(self.onboard_control_sensors_enabled)
-  w.write_uint32(self.onboard_control_sensors_health)
-  w.write_uint16(self.load)
-  w.write_uint16(self.voltage_battery)
-  w.write_int16(self.current_battery)
-  w.write_uint16(self.drop_rate_comm)
-  w.write_uint16(self.errors_comm)
-  w.write_uint16(self.errors_count1)
-  w.write_uint16(self.errors_count2)
-  w.write_uint16(self.errors_count3)
-  w.write_uint16(self.errors_count4)
-  w.write_int8(self.battery_remaining)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=31)
+  writer_.write_uint32(self.onboard_control_sensors_present)
+  writer_.write_uint32(self.onboard_control_sensors_enabled)
+  writer_.write_uint32(self.onboard_control_sensors_health)
+  writer_.write_uint16(self.load)
+  writer_.write_uint16(self.voltage_battery)
+  writer_.write_int16(self.current_battery)
+  writer_.write_uint16(self.drop_rate_comm)
+  writer_.write_uint16(self.errors_comm)
+  writer_.write_uint16(self.errors_count1)
+  writer_.write_uint16(self.errors_count2)
+  writer_.write_uint16(self.errors_count3)
+  writer_.write_uint16(self.errors_count4)
+  writer_.write_int8(self.battery_remaining)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `SysStatus` from wire-ordered little-endian payload bytes.
 pub fn SysStatus::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[SysStatus, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let onboard_control_sensors_present = match r.read_uint32() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let onboard_control_sensors_present = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let onboard_control_sensors_enabled = match r.read_uint32() {
+  let onboard_control_sensors_enabled = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let onboard_control_sensors_health = match r.read_uint32() {
+  let onboard_control_sensors_health = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let load = match r.read_uint16() {
+  let load = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let voltage_battery = match r.read_uint16() {
+  let voltage_battery = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let current_battery = match r.read_int16() {
+  let current_battery = match reader_.read_int16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let drop_rate_comm = match r.read_uint16() {
+  let drop_rate_comm = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let errors_comm = match r.read_uint16() {
+  let errors_comm = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let errors_count1 = match r.read_uint16() {
+  let errors_count1 = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let errors_count2 = match r.read_uint16() {
+  let errors_count2 = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let errors_count3 = match r.read_uint16() {
+  let errors_count3 = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let errors_count4 = match r.read_uint16() {
+  let errors_count4 = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let battery_remaining = match r.read_int8() {
+  let battery_remaining = match reader_.read_int8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -745,24 +1140,24 @@ pub fn SystemTime::encode_payload(
   self : SystemTime,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=12)
-  w.write_uint64(self.time_unix_usec)
-  w.write_uint32(self.time_boot_ms)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=12)
+  writer_.write_uint64(self.time_unix_usec)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `SystemTime` from wire-ordered little-endian payload bytes.
 pub fn SystemTime::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[SystemTime, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let time_unix_usec = match r.read_uint64() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_unix_usec = match reader_.read_uint64() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let time_boot_ms = match r.read_uint32() {
+  let time_boot_ms = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -808,38 +1203,105 @@ pub fn Ping::max_payload_len() -> Int32 {
 ///|
 /// Serialize `Ping` into wire-ordered little-endian payload bytes.
 pub fn Ping::encode_payload(self : Ping, v2~ : Bool = true) -> Bytes {
-  let w = PayloadWriter::new(capacity=14)
-  w.write_uint64(self.time_usec)
-  w.write_uint32(self.seq)
-  w.write_uint8(self.target_system)
-  w.write_uint8(self.target_component)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=14)
+  writer_.write_uint64(self.time_usec)
+  writer_.write_uint32(self.seq)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `Ping` from wire-ordered little-endian payload bytes.
 pub fn Ping::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[Ping, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let time_usec = match r.read_uint64() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_usec = match reader_.read_uint64() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let seq = match r.read_uint32() {
+  let seq = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_system = match r.read_uint8() {
+  let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_component = match r.read_uint8() {
+  let target_component = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
   Ok({ time_usec, seq, target_system, target_component, })
+}
+
+///|
+/// Set the system mode, as defined by enum MAV_MODE.
+/// - MAVLink Message `SET_MODE` (ID: 11, CRC_EXTRA: 89, base_len: 6B, max_len: 6B)
+pub(all) struct SetMode {
+  target_system : Byte
+  base_mode : Byte
+  custom_mode : UInt32
+} derive(Eq, Debug)
+
+///|
+pub extend SetMode with Eq::{not_equal, equal}
+
+///|
+pub extend SetMode with @debug.Debug::{to_repr}
+
+///|
+pub fn SetMode::msg_id() -> UInt32 {
+  11U
+}
+
+///|
+pub fn SetMode::crc_extra() -> Byte {
+  b'\x59'
+}
+
+///|
+pub fn SetMode::base_payload_len() -> Int32 {
+  6
+}
+
+///|
+pub fn SetMode::max_payload_len() -> Int32 {
+  6
+}
+
+///|
+/// Serialize `SetMode` into wire-ordered little-endian payload bytes.
+pub fn SetMode::encode_payload(self : SetMode, v2~ : Bool = true) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=6)
+  writer_.write_uint32(self.custom_mode)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.base_mode)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `SetMode` from wire-ordered little-endian payload bytes.
+pub fn SetMode::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[SetMode, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let custom_mode = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let base_mode = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, base_mode, custom_mode, })
 }
 
 ///|
@@ -884,38 +1346,102 @@ pub fn ParamRequestRead::encode_payload(
   self : ParamRequestRead,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=20)
-  w.write_int16(self.param_index)
-  w.write_uint8(self.target_system)
-  w.write_uint8(self.target_component)
-  w.write_char_array(self.param_id, 16)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=20)
+  writer_.write_int16(self.param_index)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.write_char_array(self.param_id, 16)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `ParamRequestRead` from wire-ordered little-endian payload bytes.
 pub fn ParamRequestRead::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[ParamRequestRead, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let param_index = match r.read_int16() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let param_index = match reader_.read_int16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_system = match r.read_uint8() {
+  let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_component = match r.read_uint8() {
+  let target_component = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param_id = match r.read_char_array(16) {
+  let param_id = match reader_.read_char_array(16) {
     Ok(v) => v
     Err(e) => return Err(e)
   }
   Ok({ target_system, target_component, param_id, param_index, })
+}
+
+///|
+/// Request all parameters of this component.
+/// - MAVLink Message `PARAM_REQUEST_LIST` (ID: 21, CRC_EXTRA: 159, base_len: 2B, max_len: 2B)
+pub(all) struct ParamRequestList {
+  target_system : Byte
+  target_component : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend ParamRequestList with Eq::{not_equal, equal}
+
+///|
+pub extend ParamRequestList with @debug.Debug::{to_repr}
+
+///|
+pub fn ParamRequestList::msg_id() -> UInt32 {
+  21U
+}
+
+///|
+pub fn ParamRequestList::crc_extra() -> Byte {
+  b'\x9F'
+}
+
+///|
+pub fn ParamRequestList::base_payload_len() -> Int32 {
+  2
+}
+
+///|
+pub fn ParamRequestList::max_payload_len() -> Int32 {
+  2
+}
+
+///|
+/// Serialize `ParamRequestList` into wire-ordered little-endian payload bytes.
+pub fn ParamRequestList::encode_payload(
+  self : ParamRequestList,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=2)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `ParamRequestList` from wire-ordered little-endian payload bytes.
+pub fn ParamRequestList::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[ParamRequestList, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let target_system = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, target_component, })
 }
 
 ///|
@@ -961,39 +1487,39 @@ pub fn ParamValue::encode_payload(
   self : ParamValue,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=25)
-  w.write_float(self.param_value)
-  w.write_uint16(self.param_count)
-  w.write_uint16(self.param_index)
-  w.write_char_array(self.param_id, 16)
-  w.write_uint8(self.param_type)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=25)
+  writer_.write_float(self.param_value)
+  writer_.write_uint16(self.param_count)
+  writer_.write_uint16(self.param_index)
+  writer_.write_char_array(self.param_id, 16)
+  writer_.write_uint8(self.param_type)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `ParamValue` from wire-ordered little-endian payload bytes.
 pub fn ParamValue::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[ParamValue, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let param_value = match r.read_float() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let param_value = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param_count = match r.read_uint16() {
+  let param_count = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param_index = match r.read_uint16() {
+  let param_index = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param_id = match r.read_char_array(16) {
+  let param_id = match reader_.read_char_array(16) {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param_type = match r.read_uint8() {
+  let param_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -1040,39 +1566,39 @@ pub fn ParamSet::max_payload_len() -> Int32 {
 ///|
 /// Serialize `ParamSet` into wire-ordered little-endian payload bytes.
 pub fn ParamSet::encode_payload(self : ParamSet, v2~ : Bool = true) -> Bytes {
-  let w = PayloadWriter::new(capacity=23)
-  w.write_float(self.param_value)
-  w.write_uint8(self.target_system)
-  w.write_uint8(self.target_component)
-  w.write_char_array(self.param_id, 16)
-  w.write_uint8(self.param_type)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=23)
+  writer_.write_float(self.param_value)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.write_char_array(self.param_id, 16)
+  writer_.write_uint8(self.param_type)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `ParamSet` from wire-ordered little-endian payload bytes.
 pub fn ParamSet::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[ParamSet, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let param_value = match r.read_float() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let param_value = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_system = match r.read_uint8() {
+  let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_component = match r.read_uint8() {
+  let target_component = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param_id = match r.read_char_array(16) {
+  let param_id = match reader_.read_char_array(16) {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param_type = match r.read_uint8() {
+  let param_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -1130,96 +1656,96 @@ pub fn GpsRawInt::max_payload_len() -> Int32 {
 ///|
 /// Serialize `GpsRawInt` into wire-ordered little-endian payload bytes.
 pub fn GpsRawInt::encode_payload(self : GpsRawInt, v2~ : Bool = true) -> Bytes {
-  let w = PayloadWriter::new(capacity=52)
-  w.write_uint64(self.time_usec)
-  w.write_int32(self.lat)
-  w.write_int32(self.lon)
-  w.write_int32(self.alt)
-  w.write_uint16(self.eph)
-  w.write_uint16(self.epv)
-  w.write_uint16(self.vel)
-  w.write_uint16(self.cog)
-  w.write_uint8(self.fix_type)
-  w.write_uint8(self.satellites_visible)
+  let writer_ = PayloadWriter::new(capacity=52)
+  writer_.write_uint64(self.time_usec)
+  writer_.write_int32(self.lat)
+  writer_.write_int32(self.lon)
+  writer_.write_int32(self.alt)
+  writer_.write_uint16(self.eph)
+  writer_.write_uint16(self.epv)
+  writer_.write_uint16(self.vel)
+  writer_.write_uint16(self.cog)
+  writer_.write_uint8(self.fix_type)
+  writer_.write_uint8(self.satellites_visible)
   if v2 {
-    w.write_int32(self.alt_ellipsoid)
-    w.write_uint32(self.h_acc)
-    w.write_uint32(self.v_acc)
-    w.write_uint32(self.vel_acc)
-    w.write_uint32(self.hdg_acc)
-    w.write_uint16(self.yaw)
+    writer_.write_int32(self.alt_ellipsoid)
+    writer_.write_uint32(self.h_acc)
+    writer_.write_uint32(self.v_acc)
+    writer_.write_uint32(self.vel_acc)
+    writer_.write_uint32(self.hdg_acc)
+    writer_.write_uint16(self.yaw)
   }
-  w.to_wire_bytes(truncate_zeros=v2)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `GpsRawInt` from wire-ordered little-endian payload bytes.
 pub fn GpsRawInt::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[GpsRawInt, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let time_usec = match r.read_uint64() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_usec = match reader_.read_uint64() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let lat = match r.read_int32() {
+  let lat = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let lon = match r.read_int32() {
+  let lon = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let alt = match r.read_int32() {
+  let alt = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let eph = match r.read_uint16() {
+  let eph = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let epv = match r.read_uint16() {
+  let epv = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let vel = match r.read_uint16() {
+  let vel = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let cog = match r.read_uint16() {
+  let cog = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let fix_type = match r.read_uint8() {
+  let fix_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let satellites_visible = match r.read_uint8() {
+  let satellites_visible = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let alt_ellipsoid = match r.read_int32() {
+  let alt_ellipsoid = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let h_acc = match r.read_uint32() {
+  let h_acc = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let v_acc = match r.read_uint32() {
+  let v_acc = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let vel_acc = match r.read_uint32() {
+  let vel_acc = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let hdg_acc = match r.read_uint32() {
+  let hdg_acc = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let yaw = match r.read_uint16() {
+  let yaw = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -1240,6 +1766,361 @@ pub fn GpsRawInt::decode_payload(
     vel_acc,
     hdg_acc,
     yaw,
+  })
+}
+
+///|
+/// The RAW IMU readings for the usual 9DOF sensor setup (scaled to milli-g / millirad/s).
+/// - MAVLink Message `SCALED_IMU` (ID: 26, CRC_EXTRA: 170, base_len: 22B, max_len: 24B)
+pub(all) struct ScaledImu {
+  time_boot_ms : UInt32
+  xacc : Int32
+  yacc : Int32
+  zacc : Int32
+  xgyro : Int32
+  ygyro : Int32
+  zgyro : Int32
+  xmag : Int32
+  ymag : Int32
+  zmag : Int32
+  temperature : Int32
+} derive(Eq, Debug)
+
+///|
+pub extend ScaledImu with Eq::{not_equal, equal}
+
+///|
+pub extend ScaledImu with @debug.Debug::{to_repr}
+
+///|
+pub fn ScaledImu::msg_id() -> UInt32 {
+  26U
+}
+
+///|
+pub fn ScaledImu::crc_extra() -> Byte {
+  b'\xAA'
+}
+
+///|
+pub fn ScaledImu::base_payload_len() -> Int32 {
+  22
+}
+
+///|
+pub fn ScaledImu::max_payload_len() -> Int32 {
+  24
+}
+
+///|
+/// Serialize `ScaledImu` into wire-ordered little-endian payload bytes.
+pub fn ScaledImu::encode_payload(self : ScaledImu, v2~ : Bool = true) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=24)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.write_int16(self.xacc)
+  writer_.write_int16(self.yacc)
+  writer_.write_int16(self.zacc)
+  writer_.write_int16(self.xgyro)
+  writer_.write_int16(self.ygyro)
+  writer_.write_int16(self.zgyro)
+  writer_.write_int16(self.xmag)
+  writer_.write_int16(self.ymag)
+  writer_.write_int16(self.zmag)
+  if v2 {
+    writer_.write_int16(self.temperature)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `ScaledImu` from wire-ordered little-endian payload bytes.
+pub fn ScaledImu::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[ScaledImu, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let xacc = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let yacc = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let zacc = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let xgyro = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let ygyro = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let zgyro = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let xmag = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let ymag = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let zmag = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let temperature = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    time_boot_ms,
+    xacc,
+    yacc,
+    zacc,
+    xgyro,
+    ygyro,
+    zgyro,
+    xmag,
+    ymag,
+    zmag,
+    temperature,
+  })
+}
+
+///|
+/// The RAW IMU readings for a 9DOF sensor, which is identified by the id (default IMU1).
+/// - MAVLink Message `RAW_IMU` (ID: 27, CRC_EXTRA: 144, base_len: 26B, max_len: 29B)
+pub(all) struct RawImu {
+  time_usec : UInt64
+  xacc : Int32
+  yacc : Int32
+  zacc : Int32
+  xgyro : Int32
+  ygyro : Int32
+  zgyro : Int32
+  xmag : Int32
+  ymag : Int32
+  zmag : Int32
+  id : Byte
+  temperature : Int32
+} derive(Eq, Debug)
+
+///|
+pub extend RawImu with Eq::{not_equal, equal}
+
+///|
+pub extend RawImu with @debug.Debug::{to_repr}
+
+///|
+pub fn RawImu::msg_id() -> UInt32 {
+  27U
+}
+
+///|
+pub fn RawImu::crc_extra() -> Byte {
+  b'\x90'
+}
+
+///|
+pub fn RawImu::base_payload_len() -> Int32 {
+  26
+}
+
+///|
+pub fn RawImu::max_payload_len() -> Int32 {
+  29
+}
+
+///|
+/// Serialize `RawImu` into wire-ordered little-endian payload bytes.
+pub fn RawImu::encode_payload(self : RawImu, v2~ : Bool = true) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=29)
+  writer_.write_uint64(self.time_usec)
+  writer_.write_int16(self.xacc)
+  writer_.write_int16(self.yacc)
+  writer_.write_int16(self.zacc)
+  writer_.write_int16(self.xgyro)
+  writer_.write_int16(self.ygyro)
+  writer_.write_int16(self.zgyro)
+  writer_.write_int16(self.xmag)
+  writer_.write_int16(self.ymag)
+  writer_.write_int16(self.zmag)
+  if v2 {
+    writer_.write_uint8(self.id)
+    writer_.write_int16(self.temperature)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `RawImu` from wire-ordered little-endian payload bytes.
+pub fn RawImu::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[RawImu, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_usec = match reader_.read_uint64() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let xacc = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let yacc = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let zacc = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let xgyro = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let ygyro = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let zgyro = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let xmag = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let ymag = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let zmag = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let id = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let temperature = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    time_usec,
+    xacc,
+    yacc,
+    zacc,
+    xgyro,
+    ygyro,
+    zgyro,
+    xmag,
+    ymag,
+    zmag,
+    id,
+    temperature,
+  })
+}
+
+///|
+/// The pressure readings for the typical setup of one absolute and differential pressure sensor.
+/// - MAVLink Message `SCALED_PRESSURE` (ID: 29, CRC_EXTRA: 115, base_len: 14B, max_len: 16B)
+pub(all) struct ScaledPressure {
+  time_boot_ms : UInt32
+  press_abs : Float
+  press_diff : Float
+  temperature : Int32
+  temperature_press_diff : Int32
+} derive(Eq, Debug)
+
+///|
+pub extend ScaledPressure with Eq::{not_equal, equal}
+
+///|
+pub extend ScaledPressure with @debug.Debug::{to_repr}
+
+///|
+pub fn ScaledPressure::msg_id() -> UInt32 {
+  29U
+}
+
+///|
+pub fn ScaledPressure::crc_extra() -> Byte {
+  b'\x73'
+}
+
+///|
+pub fn ScaledPressure::base_payload_len() -> Int32 {
+  14
+}
+
+///|
+pub fn ScaledPressure::max_payload_len() -> Int32 {
+  16
+}
+
+///|
+/// Serialize `ScaledPressure` into wire-ordered little-endian payload bytes.
+pub fn ScaledPressure::encode_payload(
+  self : ScaledPressure,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=16)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.write_float(self.press_abs)
+  writer_.write_float(self.press_diff)
+  writer_.write_int16(self.temperature)
+  if v2 {
+    writer_.write_int16(self.temperature_press_diff)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `ScaledPressure` from wire-ordered little-endian payload bytes.
+pub fn ScaledPressure::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[ScaledPressure, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let press_abs = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let press_diff = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let temperature = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let temperature_press_diff = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    time_boot_ms,
+    press_abs,
+    press_diff,
+    temperature,
+    temperature_press_diff,
   })
 }
 
@@ -1285,53 +2166,181 @@ pub fn Attitude::max_payload_len() -> Int32 {
 ///|
 /// Serialize `Attitude` into wire-ordered little-endian payload bytes.
 pub fn Attitude::encode_payload(self : Attitude, v2~ : Bool = true) -> Bytes {
-  let w = PayloadWriter::new(capacity=28)
-  w.write_uint32(self.time_boot_ms)
-  w.write_float(self.roll)
-  w.write_float(self.pitch)
-  w.write_float(self.yaw)
-  w.write_float(self.rollspeed)
-  w.write_float(self.pitchspeed)
-  w.write_float(self.yawspeed)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=28)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.write_float(self.roll)
+  writer_.write_float(self.pitch)
+  writer_.write_float(self.yaw)
+  writer_.write_float(self.rollspeed)
+  writer_.write_float(self.pitchspeed)
+  writer_.write_float(self.yawspeed)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `Attitude` from wire-ordered little-endian payload bytes.
 pub fn Attitude::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[Attitude, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let time_boot_ms = match r.read_uint32() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let roll = match r.read_float() {
+  let roll = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let pitch = match r.read_float() {
+  let pitch = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let yaw = match r.read_float() {
+  let yaw = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let rollspeed = match r.read_float() {
+  let rollspeed = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let pitchspeed = match r.read_float() {
+  let pitchspeed = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let yawspeed = match r.read_float() {
+  let yawspeed = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
   Ok({ time_boot_ms, roll, pitch, yaw, rollspeed, pitchspeed, yawspeed, })
+}
+
+///|
+/// The attitude in the aeronautical frame (right-handed, Z-down, X-front, Y-right), expressed as quaternion.
+/// - MAVLink Message `ATTITUDE_QUATERNION` (ID: 31, CRC_EXTRA: 246, base_len: 32B, max_len: 48B)
+pub(all) struct AttitudeQuaternion {
+  time_boot_ms : UInt32
+  q1 : Float
+  q2 : Float
+  q3 : Float
+  q4 : Float
+  rollspeed : Float
+  pitchspeed : Float
+  yawspeed : Float
+  repr_offset_q : FixedArray[Float]
+} derive(Eq, Debug)
+
+///|
+pub extend AttitudeQuaternion with Eq::{not_equal, equal}
+
+///|
+pub extend AttitudeQuaternion with @debug.Debug::{to_repr}
+
+///|
+pub fn AttitudeQuaternion::msg_id() -> UInt32 {
+  31U
+}
+
+///|
+pub fn AttitudeQuaternion::crc_extra() -> Byte {
+  b'\xF6'
+}
+
+///|
+pub fn AttitudeQuaternion::base_payload_len() -> Int32 {
+  32
+}
+
+///|
+pub fn AttitudeQuaternion::max_payload_len() -> Int32 {
+  48
+}
+
+///|
+/// Serialize `AttitudeQuaternion` into wire-ordered little-endian payload bytes.
+pub fn AttitudeQuaternion::encode_payload(
+  self : AttitudeQuaternion,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=48)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.write_float(self.q1)
+  writer_.write_float(self.q2)
+  writer_.write_float(self.q3)
+  writer_.write_float(self.q4)
+  writer_.write_float(self.rollspeed)
+  writer_.write_float(self.pitchspeed)
+  writer_.write_float(self.yawspeed)
+  if v2 {
+    for idx_ = 0; idx_ < 4; idx_ = idx_ + 1 {
+      let elem_ = if idx_ < self.repr_offset_q.length() {
+        self.repr_offset_q[idx_]
+      } else {
+        (0.0 : Float)
+      }
+      writer_.write_float(elem_)
+    }
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `AttitudeQuaternion` from wire-ordered little-endian payload bytes.
+pub fn AttitudeQuaternion::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[AttitudeQuaternion, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let q1 = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let q2 = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let q3 = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let q4 = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let rollspeed = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let pitchspeed = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let yawspeed = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let repr_offset_q = FixedArray::make(4, (0.0 : Float))
+  for idx_ = 0; idx_ < 4; idx_ = idx_ + 1 {
+    match reader_.read_float() {
+      Ok(v) => repr_offset_q[idx_] = v
+      Err(e) => return Err(e)
+    }
+  }
+  Ok({
+    time_boot_ms,
+    q1,
+    q2,
+    q3,
+    q4,
+    rollspeed,
+    pitchspeed,
+    yawspeed,
+    repr_offset_q,
+  })
 }
 
 ///|
@@ -1379,49 +2388,49 @@ pub fn LocalPositionNed::encode_payload(
   self : LocalPositionNed,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=28)
-  w.write_uint32(self.time_boot_ms)
-  w.write_float(self.x)
-  w.write_float(self.y)
-  w.write_float(self.z)
-  w.write_float(self.vx)
-  w.write_float(self.vy)
-  w.write_float(self.vz)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=28)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.write_float(self.x)
+  writer_.write_float(self.y)
+  writer_.write_float(self.z)
+  writer_.write_float(self.vx)
+  writer_.write_float(self.vy)
+  writer_.write_float(self.vz)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `LocalPositionNed` from wire-ordered little-endian payload bytes.
 pub fn LocalPositionNed::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[LocalPositionNed, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let time_boot_ms = match r.read_uint32() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let x = match r.read_float() {
+  let x = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let y = match r.read_float() {
+  let y = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let z = match r.read_float() {
+  let z = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let vx = match r.read_float() {
+  let vx = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let vy = match r.read_float() {
+  let vy = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let vz = match r.read_float() {
+  let vz = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -1475,59 +2484,59 @@ pub fn GlobalPositionInt::encode_payload(
   self : GlobalPositionInt,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=28)
-  w.write_uint32(self.time_boot_ms)
-  w.write_int32(self.lat)
-  w.write_int32(self.lon)
-  w.write_int32(self.alt)
-  w.write_int32(self.relative_alt)
-  w.write_int16(self.vx)
-  w.write_int16(self.vy)
-  w.write_int16(self.vz)
-  w.write_uint16(self.hdg)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=28)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.write_int32(self.lat)
+  writer_.write_int32(self.lon)
+  writer_.write_int32(self.alt)
+  writer_.write_int32(self.relative_alt)
+  writer_.write_int16(self.vx)
+  writer_.write_int16(self.vy)
+  writer_.write_int16(self.vz)
+  writer_.write_uint16(self.hdg)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `GlobalPositionInt` from wire-ordered little-endian payload bytes.
 pub fn GlobalPositionInt::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[GlobalPositionInt, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let time_boot_ms = match r.read_uint32() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let lat = match r.read_int32() {
+  let lat = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let lon = match r.read_int32() {
+  let lon = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let alt = match r.read_int32() {
+  let alt = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let relative_alt = match r.read_int32() {
+  let relative_alt = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let vx = match r.read_int16() {
+  let vx = match reader_.read_int16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let vy = match r.read_int16() {
+  let vy = match reader_.read_int16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let vz = match r.read_int16() {
+  let vz = match reader_.read_int16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let hdg = match r.read_uint16() {
+  let hdg = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -1583,69 +2592,69 @@ pub fn RcChannelsRaw::encode_payload(
   self : RcChannelsRaw,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=22)
-  w.write_uint32(self.time_boot_ms)
-  w.write_uint16(self.chan1_raw)
-  w.write_uint16(self.chan2_raw)
-  w.write_uint16(self.chan3_raw)
-  w.write_uint16(self.chan4_raw)
-  w.write_uint16(self.chan5_raw)
-  w.write_uint16(self.chan6_raw)
-  w.write_uint16(self.chan7_raw)
-  w.write_uint16(self.chan8_raw)
-  w.write_uint8(self.port)
-  w.write_uint8(self.rssi)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=22)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.write_uint16(self.chan1_raw)
+  writer_.write_uint16(self.chan2_raw)
+  writer_.write_uint16(self.chan3_raw)
+  writer_.write_uint16(self.chan4_raw)
+  writer_.write_uint16(self.chan5_raw)
+  writer_.write_uint16(self.chan6_raw)
+  writer_.write_uint16(self.chan7_raw)
+  writer_.write_uint16(self.chan8_raw)
+  writer_.write_uint8(self.port)
+  writer_.write_uint8(self.rssi)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `RcChannelsRaw` from wire-ordered little-endian payload bytes.
 pub fn RcChannelsRaw::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[RcChannelsRaw, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let time_boot_ms = match r.read_uint32() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let chan1_raw = match r.read_uint16() {
+  let chan1_raw = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let chan2_raw = match r.read_uint16() {
+  let chan2_raw = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let chan3_raw = match r.read_uint16() {
+  let chan3_raw = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let chan4_raw = match r.read_uint16() {
+  let chan4_raw = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let chan5_raw = match r.read_uint16() {
+  let chan5_raw = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let chan6_raw = match r.read_uint16() {
+  let chan6_raw = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let chan7_raw = match r.read_uint16() {
+  let chan7_raw = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let chan8_raw = match r.read_uint16() {
+  let chan8_raw = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let port = match r.read_uint8() {
+  let port = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let rssi = match r.read_uint8() {
+  let rssi = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -1662,6 +2671,485 @@ pub fn RcChannelsRaw::decode_payload(
     chan8_raw,
     rssi,
   })
+}
+
+///|
+/// The RAW values of the servo outputs (for RC input from the remote, use the RC_CHANNELS messages).
+/// - MAVLink Message `SERVO_OUTPUT_RAW` (ID: 36, CRC_EXTRA: 222, base_len: 21B, max_len: 37B)
+pub(all) struct ServoOutputRaw {
+  time_usec : UInt32
+  port : Byte
+  servo1_raw : UInt32
+  servo2_raw : UInt32
+  servo3_raw : UInt32
+  servo4_raw : UInt32
+  servo5_raw : UInt32
+  servo6_raw : UInt32
+  servo7_raw : UInt32
+  servo8_raw : UInt32
+  servo9_raw : UInt32
+  servo10_raw : UInt32
+  servo11_raw : UInt32
+  servo12_raw : UInt32
+  servo13_raw : UInt32
+  servo14_raw : UInt32
+  servo15_raw : UInt32
+  servo16_raw : UInt32
+} derive(Eq, Debug)
+
+///|
+pub extend ServoOutputRaw with Eq::{not_equal, equal}
+
+///|
+pub extend ServoOutputRaw with @debug.Debug::{to_repr}
+
+///|
+pub fn ServoOutputRaw::msg_id() -> UInt32 {
+  36U
+}
+
+///|
+pub fn ServoOutputRaw::crc_extra() -> Byte {
+  b'\xDE'
+}
+
+///|
+pub fn ServoOutputRaw::base_payload_len() -> Int32 {
+  21
+}
+
+///|
+pub fn ServoOutputRaw::max_payload_len() -> Int32 {
+  37
+}
+
+///|
+/// Serialize `ServoOutputRaw` into wire-ordered little-endian payload bytes.
+pub fn ServoOutputRaw::encode_payload(
+  self : ServoOutputRaw,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=37)
+  writer_.write_uint32(self.time_usec)
+  writer_.write_uint16(self.servo1_raw)
+  writer_.write_uint16(self.servo2_raw)
+  writer_.write_uint16(self.servo3_raw)
+  writer_.write_uint16(self.servo4_raw)
+  writer_.write_uint16(self.servo5_raw)
+  writer_.write_uint16(self.servo6_raw)
+  writer_.write_uint16(self.servo7_raw)
+  writer_.write_uint16(self.servo8_raw)
+  writer_.write_uint8(self.port)
+  if v2 {
+    writer_.write_uint16(self.servo9_raw)
+    writer_.write_uint16(self.servo10_raw)
+    writer_.write_uint16(self.servo11_raw)
+    writer_.write_uint16(self.servo12_raw)
+    writer_.write_uint16(self.servo13_raw)
+    writer_.write_uint16(self.servo14_raw)
+    writer_.write_uint16(self.servo15_raw)
+    writer_.write_uint16(self.servo16_raw)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `ServoOutputRaw` from wire-ordered little-endian payload bytes.
+pub fn ServoOutputRaw::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[ServoOutputRaw, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_usec = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo1_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo2_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo3_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo4_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo5_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo6_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo7_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo8_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let port = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo9_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo10_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo11_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo12_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo13_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo14_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo15_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let servo16_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    time_usec,
+    port,
+    servo1_raw,
+    servo2_raw,
+    servo3_raw,
+    servo4_raw,
+    servo5_raw,
+    servo6_raw,
+    servo7_raw,
+    servo8_raw,
+    servo9_raw,
+    servo10_raw,
+    servo11_raw,
+    servo12_raw,
+    servo13_raw,
+    servo14_raw,
+    servo15_raw,
+    servo16_raw,
+  })
+}
+
+///|
+/// Request the information of the mission item with the sequence number seq.
+/// - MAVLink Message `MISSION_REQUEST` (ID: 40, CRC_EXTRA: 230, base_len: 4B, max_len: 5B)
+pub(all) struct MissionRequest {
+  target_system : Byte
+  target_component : Byte
+  seq : UInt32
+  mission_type : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend MissionRequest with Eq::{not_equal, equal}
+
+///|
+pub extend MissionRequest with @debug.Debug::{to_repr}
+
+///|
+pub fn MissionRequest::msg_id() -> UInt32 {
+  40U
+}
+
+///|
+pub fn MissionRequest::crc_extra() -> Byte {
+  b'\xE6'
+}
+
+///|
+pub fn MissionRequest::base_payload_len() -> Int32 {
+  4
+}
+
+///|
+pub fn MissionRequest::max_payload_len() -> Int32 {
+  5
+}
+
+///|
+/// Serialize `MissionRequest` into wire-ordered little-endian payload bytes.
+pub fn MissionRequest::encode_payload(
+  self : MissionRequest,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=5)
+  writer_.write_uint16(self.seq)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  if v2 {
+    writer_.write_uint8(self.mission_type)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MissionRequest` from wire-ordered little-endian payload bytes.
+pub fn MissionRequest::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[MissionRequest, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let seq = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mission_type = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, target_component, seq, mission_type, })
+}
+
+///|
+/// Set the mission item with sequence number seq as current item.
+/// - MAVLink Message `MISSION_SET_CURRENT` (ID: 41, CRC_EXTRA: 28, base_len: 4B, max_len: 4B)
+pub(all) struct MissionSetCurrent {
+  target_system : Byte
+  target_component : Byte
+  seq : UInt32
+} derive(Eq, Debug)
+
+///|
+pub extend MissionSetCurrent with Eq::{not_equal, equal}
+
+///|
+pub extend MissionSetCurrent with @debug.Debug::{to_repr}
+
+///|
+pub fn MissionSetCurrent::msg_id() -> UInt32 {
+  41U
+}
+
+///|
+pub fn MissionSetCurrent::crc_extra() -> Byte {
+  b'\x1C'
+}
+
+///|
+pub fn MissionSetCurrent::base_payload_len() -> Int32 {
+  4
+}
+
+///|
+pub fn MissionSetCurrent::max_payload_len() -> Int32 {
+  4
+}
+
+///|
+/// Serialize `MissionSetCurrent` into wire-ordered little-endian payload bytes.
+pub fn MissionSetCurrent::encode_payload(
+  self : MissionSetCurrent,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=4)
+  writer_.write_uint16(self.seq)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MissionSetCurrent` from wire-ordered little-endian payload bytes.
+pub fn MissionSetCurrent::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[MissionSetCurrent, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let seq = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, target_component, seq, })
+}
+
+///|
+/// Message that announces the sequence number of the current active mission item.
+/// - MAVLink Message `MISSION_CURRENT` (ID: 42, CRC_EXTRA: 28, base_len: 2B, max_len: 6B)
+pub(all) struct MissionCurrent {
+  seq : UInt32
+  total : UInt32
+  mission_state : Byte
+  mission_mode : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend MissionCurrent with Eq::{not_equal, equal}
+
+///|
+pub extend MissionCurrent with @debug.Debug::{to_repr}
+
+///|
+pub fn MissionCurrent::msg_id() -> UInt32 {
+  42U
+}
+
+///|
+pub fn MissionCurrent::crc_extra() -> Byte {
+  b'\x1C'
+}
+
+///|
+pub fn MissionCurrent::base_payload_len() -> Int32 {
+  2
+}
+
+///|
+pub fn MissionCurrent::max_payload_len() -> Int32 {
+  6
+}
+
+///|
+/// Serialize `MissionCurrent` into wire-ordered little-endian payload bytes.
+pub fn MissionCurrent::encode_payload(
+  self : MissionCurrent,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=6)
+  writer_.write_uint16(self.seq)
+  if v2 {
+    writer_.write_uint16(self.total)
+    writer_.write_uint8(self.mission_state)
+    writer_.write_uint8(self.mission_mode)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MissionCurrent` from wire-ordered little-endian payload bytes.
+pub fn MissionCurrent::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[MissionCurrent, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let seq = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let total = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mission_state = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mission_mode = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ seq, total, mission_state, mission_mode, })
+}
+
+///|
+/// Request the overall list of mission items from the system/component.
+/// - MAVLink Message `MISSION_REQUEST_LIST` (ID: 43, CRC_EXTRA: 132, base_len: 2B, max_len: 3B)
+pub(all) struct MissionRequestList {
+  target_system : Byte
+  target_component : Byte
+  mission_type : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend MissionRequestList with Eq::{not_equal, equal}
+
+///|
+pub extend MissionRequestList with @debug.Debug::{to_repr}
+
+///|
+pub fn MissionRequestList::msg_id() -> UInt32 {
+  43U
+}
+
+///|
+pub fn MissionRequestList::crc_extra() -> Byte {
+  b'\x84'
+}
+
+///|
+pub fn MissionRequestList::base_payload_len() -> Int32 {
+  2
+}
+
+///|
+pub fn MissionRequestList::max_payload_len() -> Int32 {
+  3
+}
+
+///|
+/// Serialize `MissionRequestList` into wire-ordered little-endian payload bytes.
+pub fn MissionRequestList::encode_payload(
+  self : MissionRequestList,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=3)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  if v2 {
+    writer_.write_uint8(self.mission_type)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MissionRequestList` from wire-ordered little-endian payload bytes.
+pub fn MissionRequestList::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[MissionRequestList, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let target_system = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mission_type = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, target_component, mission_type, })
 }
 
 ///|
@@ -1707,45 +3195,175 @@ pub fn MissionCount::encode_payload(
   self : MissionCount,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=9)
-  w.write_uint16(self.count)
-  w.write_uint8(self.target_system)
-  w.write_uint8(self.target_component)
+  let writer_ = PayloadWriter::new(capacity=9)
+  writer_.write_uint16(self.count)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
   if v2 {
-    w.write_uint8(self.mission_type)
-    w.write_uint32(self.opaque_id)
+    writer_.write_uint8(self.mission_type)
+    writer_.write_uint32(self.opaque_id)
   }
-  w.to_wire_bytes(truncate_zeros=v2)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `MissionCount` from wire-ordered little-endian payload bytes.
 pub fn MissionCount::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[MissionCount, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let count = match r.read_uint16() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let count = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_system = match r.read_uint8() {
+  let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_component = match r.read_uint8() {
+  let target_component = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let mission_type = match r.read_uint8() {
+  let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let opaque_id = match r.read_uint32() {
+  let opaque_id = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
   Ok({ target_system, target_component, count, mission_type, opaque_id, })
+}
+
+///|
+/// Delete all mission items at once.
+/// - MAVLink Message `MISSION_CLEAR_ALL` (ID: 45, CRC_EXTRA: 232, base_len: 2B, max_len: 3B)
+pub(all) struct MissionClearAll {
+  target_system : Byte
+  target_component : Byte
+  mission_type : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend MissionClearAll with Eq::{not_equal, equal}
+
+///|
+pub extend MissionClearAll with @debug.Debug::{to_repr}
+
+///|
+pub fn MissionClearAll::msg_id() -> UInt32 {
+  45U
+}
+
+///|
+pub fn MissionClearAll::crc_extra() -> Byte {
+  b'\xE8'
+}
+
+///|
+pub fn MissionClearAll::base_payload_len() -> Int32 {
+  2
+}
+
+///|
+pub fn MissionClearAll::max_payload_len() -> Int32 {
+  3
+}
+
+///|
+/// Serialize `MissionClearAll` into wire-ordered little-endian payload bytes.
+pub fn MissionClearAll::encode_payload(
+  self : MissionClearAll,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=3)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  if v2 {
+    writer_.write_uint8(self.mission_type)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MissionClearAll` from wire-ordered little-endian payload bytes.
+pub fn MissionClearAll::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[MissionClearAll, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let target_system = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mission_type = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, target_component, mission_type, })
+}
+
+///|
+/// A certain mission item has been reached.
+/// - MAVLink Message `MISSION_ITEM_REACHED` (ID: 46, CRC_EXTRA: 11, base_len: 2B, max_len: 2B)
+pub(all) struct MissionItemReached {
+  seq : UInt32
+} derive(Eq, Debug)
+
+///|
+pub extend MissionItemReached with Eq::{not_equal, equal}
+
+///|
+pub extend MissionItemReached with @debug.Debug::{to_repr}
+
+///|
+pub fn MissionItemReached::msg_id() -> UInt32 {
+  46U
+}
+
+///|
+pub fn MissionItemReached::crc_extra() -> Byte {
+  b'\x0B'
+}
+
+///|
+pub fn MissionItemReached::base_payload_len() -> Int32 {
+  2
+}
+
+///|
+pub fn MissionItemReached::max_payload_len() -> Int32 {
+  2
+}
+
+///|
+/// Serialize `MissionItemReached` into wire-ordered little-endian payload bytes.
+pub fn MissionItemReached::encode_payload(
+  self : MissionItemReached,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=2)
+  writer_.write_uint16(self.seq)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MissionItemReached` from wire-ordered little-endian payload bytes.
+pub fn MissionItemReached::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[MissionItemReached, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let seq = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ seq, })
 }
 
 ///|
@@ -1791,41 +3409,41 @@ pub fn MissionAck::encode_payload(
   self : MissionAck,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=8)
-  w.write_uint8(self.target_system)
-  w.write_uint8(self.target_component)
-  w.write_uint8(self.mav_type)
+  let writer_ = PayloadWriter::new(capacity=8)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.write_uint8(self.mav_type)
   if v2 {
-    w.write_uint8(self.mission_type)
-    w.write_uint32(self.opaque_id)
+    writer_.write_uint8(self.mission_type)
+    writer_.write_uint32(self.opaque_id)
   }
-  w.to_wire_bytes(truncate_zeros=v2)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `MissionAck` from wire-ordered little-endian payload bytes.
 pub fn MissionAck::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[MissionAck, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let target_system = match r.read_uint8() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_component = match r.read_uint8() {
+  let target_component = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let mav_type = match r.read_uint8() {
+  let mav_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let mission_type = match r.read_uint8() {
+  let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let opaque_id = match r.read_uint32() {
+  let opaque_id = match reader_.read_uint32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -1874,40 +3492,354 @@ pub fn MissionRequestInt::encode_payload(
   self : MissionRequestInt,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=5)
-  w.write_uint16(self.seq)
-  w.write_uint8(self.target_system)
-  w.write_uint8(self.target_component)
+  let writer_ = PayloadWriter::new(capacity=5)
+  writer_.write_uint16(self.seq)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
   if v2 {
-    w.write_uint8(self.mission_type)
+    writer_.write_uint8(self.mission_type)
   }
-  w.to_wire_bytes(truncate_zeros=v2)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `MissionRequestInt` from wire-ordered little-endian payload bytes.
 pub fn MissionRequestInt::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[MissionRequestInt, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let seq = match r.read_uint16() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let seq = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_system = match r.read_uint8() {
+  let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_component = match r.read_uint8() {
+  let target_component = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let mission_type = match r.read_uint8() {
+  let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
   Ok({ target_system, target_component, seq, mission_type, })
+}
+
+///|
+/// The PPM values of the RC channels received.
+/// - MAVLink Message `RC_CHANNELS` (ID: 65, CRC_EXTRA: 118, base_len: 42B, max_len: 42B)
+pub(all) struct RcChannels {
+  time_boot_ms : UInt32
+  chancount : Byte
+  chan1_raw : UInt32
+  chan2_raw : UInt32
+  chan3_raw : UInt32
+  chan4_raw : UInt32
+  chan5_raw : UInt32
+  chan6_raw : UInt32
+  chan7_raw : UInt32
+  chan8_raw : UInt32
+  chan9_raw : UInt32
+  chan10_raw : UInt32
+  chan11_raw : UInt32
+  chan12_raw : UInt32
+  chan13_raw : UInt32
+  chan14_raw : UInt32
+  chan15_raw : UInt32
+  chan16_raw : UInt32
+  chan17_raw : UInt32
+  chan18_raw : UInt32
+  rssi : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend RcChannels with Eq::{not_equal, equal}
+
+///|
+pub extend RcChannels with @debug.Debug::{to_repr}
+
+///|
+pub fn RcChannels::msg_id() -> UInt32 {
+  65U
+}
+
+///|
+pub fn RcChannels::crc_extra() -> Byte {
+  b'\x76'
+}
+
+///|
+pub fn RcChannels::base_payload_len() -> Int32 {
+  42
+}
+
+///|
+pub fn RcChannels::max_payload_len() -> Int32 {
+  42
+}
+
+///|
+/// Serialize `RcChannels` into wire-ordered little-endian payload bytes.
+pub fn RcChannels::encode_payload(
+  self : RcChannels,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=42)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.write_uint16(self.chan1_raw)
+  writer_.write_uint16(self.chan2_raw)
+  writer_.write_uint16(self.chan3_raw)
+  writer_.write_uint16(self.chan4_raw)
+  writer_.write_uint16(self.chan5_raw)
+  writer_.write_uint16(self.chan6_raw)
+  writer_.write_uint16(self.chan7_raw)
+  writer_.write_uint16(self.chan8_raw)
+  writer_.write_uint16(self.chan9_raw)
+  writer_.write_uint16(self.chan10_raw)
+  writer_.write_uint16(self.chan11_raw)
+  writer_.write_uint16(self.chan12_raw)
+  writer_.write_uint16(self.chan13_raw)
+  writer_.write_uint16(self.chan14_raw)
+  writer_.write_uint16(self.chan15_raw)
+  writer_.write_uint16(self.chan16_raw)
+  writer_.write_uint16(self.chan17_raw)
+  writer_.write_uint16(self.chan18_raw)
+  writer_.write_uint8(self.chancount)
+  writer_.write_uint8(self.rssi)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `RcChannels` from wire-ordered little-endian payload bytes.
+pub fn RcChannels::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[RcChannels, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan1_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan2_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan3_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan4_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan5_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan6_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan7_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan8_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan9_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan10_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan11_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan12_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan13_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan14_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan15_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan16_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan17_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chan18_raw = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let chancount = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let rssi = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    time_boot_ms,
+    chancount,
+    chan1_raw,
+    chan2_raw,
+    chan3_raw,
+    chan4_raw,
+    chan5_raw,
+    chan6_raw,
+    chan7_raw,
+    chan8_raw,
+    chan9_raw,
+    chan10_raw,
+    chan11_raw,
+    chan12_raw,
+    chan13_raw,
+    chan14_raw,
+    chan15_raw,
+    chan16_raw,
+    chan17_raw,
+    chan18_raw,
+    rssi,
+  })
+}
+
+///|
+/// This message provides an API for manually controlling the vehicle using standard joystick axes.
+/// - MAVLink Message `MANUAL_CONTROL` (ID: 69, CRC_EXTRA: 243, base_len: 11B, max_len: 18B)
+pub(all) struct ManualControl {
+  target : Byte
+  x : Int32
+  y : Int32
+  z : Int32
+  r : Int32
+  buttons : UInt32
+  buttons2 : UInt32
+  enabled_extensions : Byte
+  s : Int32
+  t : Int32
+} derive(Eq, Debug)
+
+///|
+pub extend ManualControl with Eq::{not_equal, equal}
+
+///|
+pub extend ManualControl with @debug.Debug::{to_repr}
+
+///|
+pub fn ManualControl::msg_id() -> UInt32 {
+  69U
+}
+
+///|
+pub fn ManualControl::crc_extra() -> Byte {
+  b'\xF3'
+}
+
+///|
+pub fn ManualControl::base_payload_len() -> Int32 {
+  11
+}
+
+///|
+pub fn ManualControl::max_payload_len() -> Int32 {
+  18
+}
+
+///|
+/// Serialize `ManualControl` into wire-ordered little-endian payload bytes.
+pub fn ManualControl::encode_payload(
+  self : ManualControl,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=18)
+  writer_.write_int16(self.x)
+  writer_.write_int16(self.y)
+  writer_.write_int16(self.z)
+  writer_.write_int16(self.r)
+  writer_.write_uint16(self.buttons)
+  writer_.write_uint8(self.target)
+  if v2 {
+    writer_.write_uint16(self.buttons2)
+    writer_.write_uint8(self.enabled_extensions)
+    writer_.write_int16(self.s)
+    writer_.write_int16(self.t)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `ManualControl` from wire-ordered little-endian payload bytes.
+pub fn ManualControl::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[ManualControl, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let x = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let y = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let z = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let r = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let buttons = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let buttons2 = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let enabled_extensions = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let s = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let t = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target, x, y, z, r, buttons, buttons2, enabled_extensions, s, t, })
 }
 
 ///|
@@ -1963,91 +3895,91 @@ pub fn MissionItemInt::encode_payload(
   self : MissionItemInt,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=38)
-  w.write_float(self.param1)
-  w.write_float(self.param2)
-  w.write_float(self.param3)
-  w.write_float(self.param4)
-  w.write_int32(self.x)
-  w.write_int32(self.y)
-  w.write_float(self.z)
-  w.write_uint16(self.seq)
-  w.write_uint16(self.command)
-  w.write_uint8(self.target_system)
-  w.write_uint8(self.target_component)
-  w.write_uint8(self.frame)
-  w.write_uint8(self.current)
-  w.write_uint8(self.autocontinue)
+  let writer_ = PayloadWriter::new(capacity=38)
+  writer_.write_float(self.param1)
+  writer_.write_float(self.param2)
+  writer_.write_float(self.param3)
+  writer_.write_float(self.param4)
+  writer_.write_int32(self.x)
+  writer_.write_int32(self.y)
+  writer_.write_float(self.z)
+  writer_.write_uint16(self.seq)
+  writer_.write_uint16(self.command)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.write_uint8(self.frame)
+  writer_.write_uint8(self.current)
+  writer_.write_uint8(self.autocontinue)
   if v2 {
-    w.write_uint8(self.mission_type)
+    writer_.write_uint8(self.mission_type)
   }
-  w.to_wire_bytes(truncate_zeros=v2)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `MissionItemInt` from wire-ordered little-endian payload bytes.
 pub fn MissionItemInt::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[MissionItemInt, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let param1 = match r.read_float() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let param1 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param2 = match r.read_float() {
+  let param2 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param3 = match r.read_float() {
+  let param3 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param4 = match r.read_float() {
+  let param4 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let x = match r.read_int32() {
+  let x = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let y = match r.read_int32() {
+  let y = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let z = match r.read_float() {
+  let z = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let seq = match r.read_uint16() {
+  let seq = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let command = match r.read_uint16() {
+  let command = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_system = match r.read_uint8() {
+  let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_component = match r.read_uint8() {
+  let target_component = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let frame = match r.read_uint8() {
+  let frame = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let current = match r.read_uint8() {
+  let current = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let autocontinue = match r.read_uint8() {
+  let autocontinue = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let mission_type = match r.read_uint8() {
+  let mission_type = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -2067,6 +3999,235 @@ pub fn MissionItemInt::decode_payload(
     y,
     z,
     mission_type,
+  })
+}
+
+///|
+/// Metrics typically displayed on a HUD for fixed wing aircraft.
+/// - MAVLink Message `VFR_HUD` (ID: 74, CRC_EXTRA: 20, base_len: 20B, max_len: 20B)
+pub(all) struct VfrHud {
+  airspeed : Float
+  groundspeed : Float
+  heading : Int32
+  throttle : UInt32
+  alt : Float
+  climb : Float
+} derive(Eq, Debug)
+
+///|
+pub extend VfrHud with Eq::{not_equal, equal}
+
+///|
+pub extend VfrHud with @debug.Debug::{to_repr}
+
+///|
+pub fn VfrHud::msg_id() -> UInt32 {
+  74U
+}
+
+///|
+pub fn VfrHud::crc_extra() -> Byte {
+  b'\x14'
+}
+
+///|
+pub fn VfrHud::base_payload_len() -> Int32 {
+  20
+}
+
+///|
+pub fn VfrHud::max_payload_len() -> Int32 {
+  20
+}
+
+///|
+/// Serialize `VfrHud` into wire-ordered little-endian payload bytes.
+pub fn VfrHud::encode_payload(self : VfrHud, v2~ : Bool = true) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=20)
+  writer_.write_float(self.airspeed)
+  writer_.write_float(self.groundspeed)
+  writer_.write_float(self.alt)
+  writer_.write_float(self.climb)
+  writer_.write_int16(self.heading)
+  writer_.write_uint16(self.throttle)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `VfrHud` from wire-ordered little-endian payload bytes.
+pub fn VfrHud::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[VfrHud, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let airspeed = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let groundspeed = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let alt = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let climb = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let heading = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let throttle = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ airspeed, groundspeed, heading, throttle, alt, climb, })
+}
+
+///|
+/// Message encoding a command with parameters as scaled integers.
+/// - MAVLink Message `COMMAND_INT` (ID: 75, CRC_EXTRA: 158, base_len: 35B, max_len: 35B)
+pub(all) struct CommandInt {
+  target_system : Byte
+  target_component : Byte
+  frame : Byte
+  command : UInt32
+  current : Byte
+  autocontinue : Byte
+  param1 : Float
+  param2 : Float
+  param3 : Float
+  param4 : Float
+  x : Int32
+  y : Int32
+  z : Float
+} derive(Eq, Debug)
+
+///|
+pub extend CommandInt with Eq::{not_equal, equal}
+
+///|
+pub extend CommandInt with @debug.Debug::{to_repr}
+
+///|
+pub fn CommandInt::msg_id() -> UInt32 {
+  75U
+}
+
+///|
+pub fn CommandInt::crc_extra() -> Byte {
+  b'\x9E'
+}
+
+///|
+pub fn CommandInt::base_payload_len() -> Int32 {
+  35
+}
+
+///|
+pub fn CommandInt::max_payload_len() -> Int32 {
+  35
+}
+
+///|
+/// Serialize `CommandInt` into wire-ordered little-endian payload bytes.
+pub fn CommandInt::encode_payload(
+  self : CommandInt,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=35)
+  writer_.write_float(self.param1)
+  writer_.write_float(self.param2)
+  writer_.write_float(self.param3)
+  writer_.write_float(self.param4)
+  writer_.write_int32(self.x)
+  writer_.write_int32(self.y)
+  writer_.write_float(self.z)
+  writer_.write_uint16(self.command)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.write_uint8(self.frame)
+  writer_.write_uint8(self.current)
+  writer_.write_uint8(self.autocontinue)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `CommandInt` from wire-ordered little-endian payload bytes.
+pub fn CommandInt::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[CommandInt, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let param1 = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let param2 = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let param3 = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let param4 = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let x = match reader_.read_int32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let y = match reader_.read_int32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let z = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let command = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let frame = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let current = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let autocontinue = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    target_system,
+    target_component,
+    frame,
+    command,
+    current,
+    autocontinue,
+    param1,
+    param2,
+    param3,
+    param4,
+    x,
+    y,
+    z,
   })
 }
 
@@ -2119,69 +4280,69 @@ pub fn CommandLong::encode_payload(
   self : CommandLong,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=33)
-  w.write_float(self.param1)
-  w.write_float(self.param2)
-  w.write_float(self.param3)
-  w.write_float(self.param4)
-  w.write_float(self.param5)
-  w.write_float(self.param6)
-  w.write_float(self.param7)
-  w.write_uint16(self.command)
-  w.write_uint8(self.target_system)
-  w.write_uint8(self.target_component)
-  w.write_uint8(self.confirmation)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=33)
+  writer_.write_float(self.param1)
+  writer_.write_float(self.param2)
+  writer_.write_float(self.param3)
+  writer_.write_float(self.param4)
+  writer_.write_float(self.param5)
+  writer_.write_float(self.param6)
+  writer_.write_float(self.param7)
+  writer_.write_uint16(self.command)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.write_uint8(self.confirmation)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `CommandLong` from wire-ordered little-endian payload bytes.
 pub fn CommandLong::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[CommandLong, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let param1 = match r.read_float() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let param1 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param2 = match r.read_float() {
+  let param2 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param3 = match r.read_float() {
+  let param3 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param4 = match r.read_float() {
+  let param4 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param5 = match r.read_float() {
+  let param5 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param6 = match r.read_float() {
+  let param6 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let param7 = match r.read_float() {
+  let param7 = match reader_.read_float() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let command = match r.read_uint16() {
+  let command = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_system = match r.read_uint8() {
+  let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_component = match r.read_uint8() {
+  let target_component = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let confirmation = match r.read_uint8() {
+  let confirmation = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -2244,46 +4405,46 @@ pub fn CommandAck::encode_payload(
   self : CommandAck,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=10)
-  w.write_uint16(self.command)
-  w.write_uint8(self.result)
+  let writer_ = PayloadWriter::new(capacity=10)
+  writer_.write_uint16(self.command)
+  writer_.write_uint8(self.result)
   if v2 {
-    w.write_uint8(self.progress)
-    w.write_int32(self.result_param2)
-    w.write_uint8(self.target_system)
-    w.write_uint8(self.target_component)
+    writer_.write_uint8(self.progress)
+    writer_.write_int32(self.result_param2)
+    writer_.write_uint8(self.target_system)
+    writer_.write_uint8(self.target_component)
   }
-  w.to_wire_bytes(truncate_zeros=v2)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `CommandAck` from wire-ordered little-endian payload bytes.
 pub fn CommandAck::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[CommandAck, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let command = match r.read_uint16() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let command = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let result = match r.read_uint8() {
+  let result = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let progress = match r.read_uint8() {
+  let progress = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let result_param2 = match r.read_int32() {
+  let result_param2 = match reader_.read_int32() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_system = match r.read_uint8() {
+  let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_component = match r.read_uint8() {
+  let target_component = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -2295,6 +4456,842 @@ pub fn CommandAck::decode_payload(
     target_system,
     target_component,
   })
+}
+
+///|
+/// Cancel a long running command.
+/// - MAVLink Message `COMMAND_CANCEL` (ID: 80, CRC_EXTRA: 14, base_len: 4B, max_len: 4B)
+pub(all) struct CommandCancel {
+  target_system : Byte
+  target_component : Byte
+  command : UInt32
+} derive(Eq, Debug)
+
+///|
+pub extend CommandCancel with Eq::{not_equal, equal}
+
+///|
+pub extend CommandCancel with @debug.Debug::{to_repr}
+
+///|
+pub fn CommandCancel::msg_id() -> UInt32 {
+  80U
+}
+
+///|
+pub fn CommandCancel::crc_extra() -> Byte {
+  b'\x0E'
+}
+
+///|
+pub fn CommandCancel::base_payload_len() -> Int32 {
+  4
+}
+
+///|
+pub fn CommandCancel::max_payload_len() -> Int32 {
+  4
+}
+
+///|
+/// Serialize `CommandCancel` into wire-ordered little-endian payload bytes.
+pub fn CommandCancel::encode_payload(
+  self : CommandCancel,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=4)
+  writer_.write_uint16(self.command)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `CommandCancel` from wire-ordered little-endian payload bytes.
+pub fn CommandCancel::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[CommandCancel, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let command = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ target_system, target_component, command, })
+}
+
+///|
+/// Sets a desired vehicle attitude. Used by an external controller to command the vehicle.
+/// - MAVLink Message `SET_ATTITUDE_TARGET` (ID: 82, CRC_EXTRA: 49, base_len: 39B, max_len: 39B)
+pub(all) struct SetAttitudeTarget {
+  time_boot_ms : UInt32
+  target_system : Byte
+  target_component : Byte
+  type_mask : Byte
+  q : FixedArray[Float]
+  body_roll_rate : Float
+  body_pitch_rate : Float
+  body_yaw_rate : Float
+  thrust : Float
+} derive(Eq, Debug)
+
+///|
+pub extend SetAttitudeTarget with Eq::{not_equal, equal}
+
+///|
+pub extend SetAttitudeTarget with @debug.Debug::{to_repr}
+
+///|
+pub fn SetAttitudeTarget::msg_id() -> UInt32 {
+  82U
+}
+
+///|
+pub fn SetAttitudeTarget::crc_extra() -> Byte {
+  b'\x31'
+}
+
+///|
+pub fn SetAttitudeTarget::base_payload_len() -> Int32 {
+  39
+}
+
+///|
+pub fn SetAttitudeTarget::max_payload_len() -> Int32 {
+  39
+}
+
+///|
+/// Serialize `SetAttitudeTarget` into wire-ordered little-endian payload bytes.
+pub fn SetAttitudeTarget::encode_payload(
+  self : SetAttitudeTarget,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=39)
+  writer_.write_uint32(self.time_boot_ms)
+  for idx_ = 0; idx_ < 4; idx_ = idx_ + 1 {
+    let elem_ = if idx_ < self.q.length() {
+      self.q[idx_]
+    } else {
+      (0.0 : Float)
+    }
+    writer_.write_float(elem_)
+  }
+  writer_.write_float(self.body_roll_rate)
+  writer_.write_float(self.body_pitch_rate)
+  writer_.write_float(self.body_yaw_rate)
+  writer_.write_float(self.thrust)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.write_uint8(self.type_mask)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `SetAttitudeTarget` from wire-ordered little-endian payload bytes.
+pub fn SetAttitudeTarget::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[SetAttitudeTarget, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let q = FixedArray::make(4, (0.0 : Float))
+  for idx_ = 0; idx_ < 4; idx_ = idx_ + 1 {
+    match reader_.read_float() {
+      Ok(v) => q[idx_] = v
+      Err(e) => return Err(e)
+    }
+  }
+  let body_roll_rate = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let body_pitch_rate = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let body_yaw_rate = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let thrust = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let type_mask = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    time_boot_ms,
+    target_system,
+    target_component,
+    type_mask,
+    q,
+    body_roll_rate,
+    body_pitch_rate,
+    body_yaw_rate,
+    thrust,
+  })
+}
+
+///|
+/// Time synchronization message.
+/// - MAVLink Message `TIMESYNC` (ID: 111, CRC_EXTRA: 34, base_len: 16B, max_len: 18B)
+pub(all) struct Timesync {
+  tc1 : Int64
+  ts1 : Int64
+  target_system : Byte
+  target_component : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend Timesync with Eq::{not_equal, equal}
+
+///|
+pub extend Timesync with @debug.Debug::{to_repr}
+
+///|
+pub fn Timesync::msg_id() -> UInt32 {
+  111U
+}
+
+///|
+pub fn Timesync::crc_extra() -> Byte {
+  b'\x22'
+}
+
+///|
+pub fn Timesync::base_payload_len() -> Int32 {
+  16
+}
+
+///|
+pub fn Timesync::max_payload_len() -> Int32 {
+  18
+}
+
+///|
+/// Serialize `Timesync` into wire-ordered little-endian payload bytes.
+pub fn Timesync::encode_payload(self : Timesync, v2~ : Bool = true) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=18)
+  writer_.write_int64(self.tc1)
+  writer_.write_int64(self.ts1)
+  if v2 {
+    writer_.write_uint8(self.target_system)
+    writer_.write_uint8(self.target_component)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `Timesync` from wire-ordered little-endian payload bytes.
+pub fn Timesync::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[Timesync, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let tc1 = match reader_.read_int64() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let ts1 = match reader_.read_int64() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_system = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let target_component = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ tc1, ts1, target_system, target_component, })
+}
+
+///|
+/// Distance sensor information for an onboard rangefinder.
+/// - MAVLink Message `DISTANCE_SENSOR` (ID: 132, CRC_EXTRA: 85, base_len: 14B, max_len: 39B)
+pub(all) struct DistanceSensor {
+  time_boot_ms : UInt32
+  min_distance : UInt32
+  max_distance : UInt32
+  current_distance : UInt32
+  mav_type : Byte
+  id : Byte
+  orientation : Byte
+  covariance : Byte
+  horizontal_fov : Float
+  vertical_fov : Float
+  quaternion : FixedArray[Float]
+  signal_quality : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend DistanceSensor with Eq::{not_equal, equal}
+
+///|
+pub extend DistanceSensor with @debug.Debug::{to_repr}
+
+///|
+pub fn DistanceSensor::msg_id() -> UInt32 {
+  132U
+}
+
+///|
+pub fn DistanceSensor::crc_extra() -> Byte {
+  b'\x55'
+}
+
+///|
+pub fn DistanceSensor::base_payload_len() -> Int32 {
+  14
+}
+
+///|
+pub fn DistanceSensor::max_payload_len() -> Int32 {
+  39
+}
+
+///|
+/// Serialize `DistanceSensor` into wire-ordered little-endian payload bytes.
+pub fn DistanceSensor::encode_payload(
+  self : DistanceSensor,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=39)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.write_uint16(self.min_distance)
+  writer_.write_uint16(self.max_distance)
+  writer_.write_uint16(self.current_distance)
+  writer_.write_uint8(self.mav_type)
+  writer_.write_uint8(self.id)
+  writer_.write_uint8(self.orientation)
+  writer_.write_uint8(self.covariance)
+  if v2 {
+    writer_.write_float(self.horizontal_fov)
+    writer_.write_float(self.vertical_fov)
+    for idx_ = 0; idx_ < 4; idx_ = idx_ + 1 {
+      let elem_ = if idx_ < self.quaternion.length() {
+        self.quaternion[idx_]
+      } else {
+        (0.0 : Float)
+      }
+      writer_.write_float(elem_)
+    }
+    writer_.write_uint8(self.signal_quality)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `DistanceSensor` from wire-ordered little-endian payload bytes.
+pub fn DistanceSensor::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[DistanceSensor, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let min_distance = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let max_distance = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let current_distance = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mav_type = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let id = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let orientation = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let covariance = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let horizontal_fov = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let vertical_fov = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let quaternion = FixedArray::make(4, (0.0 : Float))
+  for idx_ = 0; idx_ < 4; idx_ = idx_ + 1 {
+    match reader_.read_float() {
+      Ok(v) => quaternion[idx_] = v
+      Err(e) => return Err(e)
+    }
+  }
+  let signal_quality = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    time_boot_ms,
+    min_distance,
+    max_distance,
+    current_distance,
+    mav_type,
+    id,
+    orientation,
+    covariance,
+    horizontal_fov,
+    vertical_fov,
+    quaternion,
+    signal_quality,
+  })
+}
+
+///|
+/// Battery information.
+/// - MAVLink Message `BATTERY_STATUS` (ID: 147, CRC_EXTRA: 154, base_len: 36B, max_len: 54B)
+pub(all) struct BatteryStatus {
+  id : Byte
+  battery_function : Byte
+  mav_type : Byte
+  temperature : Int32
+  voltages : FixedArray[UInt32]
+  current_battery : Int32
+  current_consumed : Int32
+  energy_consumed : Int32
+  battery_remaining : Int32
+  time_remaining : Int32
+  charge_state : Byte
+  voltages_ext : FixedArray[UInt32]
+  mode : Byte
+  fault_bitmask : UInt32
+} derive(Eq, Debug)
+
+///|
+pub extend BatteryStatus with Eq::{not_equal, equal}
+
+///|
+pub extend BatteryStatus with @debug.Debug::{to_repr}
+
+///|
+pub fn BatteryStatus::msg_id() -> UInt32 {
+  147U
+}
+
+///|
+pub fn BatteryStatus::crc_extra() -> Byte {
+  b'\x9A'
+}
+
+///|
+pub fn BatteryStatus::base_payload_len() -> Int32 {
+  36
+}
+
+///|
+pub fn BatteryStatus::max_payload_len() -> Int32 {
+  54
+}
+
+///|
+/// Serialize `BatteryStatus` into wire-ordered little-endian payload bytes.
+pub fn BatteryStatus::encode_payload(
+  self : BatteryStatus,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=54)
+  writer_.write_int32(self.current_consumed)
+  writer_.write_int32(self.energy_consumed)
+  writer_.write_int16(self.temperature)
+  for idx_ = 0; idx_ < 10; idx_ = idx_ + 1 {
+    let elem_ = if idx_ < self.voltages.length() {
+      self.voltages[idx_]
+    } else {
+      0U
+    }
+    writer_.write_uint16(elem_)
+  }
+  writer_.write_int16(self.current_battery)
+  writer_.write_uint8(self.id)
+  writer_.write_uint8(self.battery_function)
+  writer_.write_uint8(self.mav_type)
+  writer_.write_int8(self.battery_remaining)
+  if v2 {
+    writer_.write_int32(self.time_remaining)
+    writer_.write_uint8(self.charge_state)
+    for idx_ = 0; idx_ < 4; idx_ = idx_ + 1 {
+      let elem_ = if idx_ < self.voltages_ext.length() {
+        self.voltages_ext[idx_]
+      } else {
+        0U
+      }
+      writer_.write_uint16(elem_)
+    }
+    writer_.write_uint8(self.mode)
+    writer_.write_uint32(self.fault_bitmask)
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `BatteryStatus` from wire-ordered little-endian payload bytes.
+pub fn BatteryStatus::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[BatteryStatus, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let current_consumed = match reader_.read_int32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let energy_consumed = match reader_.read_int32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let temperature = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let voltages = FixedArray::make(10, 0U)
+  for idx_ = 0; idx_ < 10; idx_ = idx_ + 1 {
+    match reader_.read_uint16() {
+      Ok(v) => voltages[idx_] = v
+      Err(e) => return Err(e)
+    }
+  }
+  let current_battery = match reader_.read_int16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let id = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let battery_function = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let mav_type = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let battery_remaining = match reader_.read_int8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let time_remaining = match reader_.read_int32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let charge_state = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let voltages_ext = FixedArray::make(4, 0U)
+  for idx_ = 0; idx_ < 4; idx_ = idx_ + 1 {
+    match reader_.read_uint16() {
+      Ok(v) => voltages_ext[idx_] = v
+      Err(e) => return Err(e)
+    }
+  }
+  let mode = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let fault_bitmask = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({
+    id,
+    battery_function,
+    mav_type,
+    temperature,
+    voltages,
+    current_battery,
+    current_consumed,
+    energy_consumed,
+    battery_remaining,
+    time_remaining,
+    charge_state,
+    voltages_ext,
+    mode,
+    fault_bitmask,
+  })
+}
+
+///|
+/// Version and capability of autopilot software.
+/// - MAVLink Message `AUTOPILOT_VERSION` (ID: 148, CRC_EXTRA: 178, base_len: 60B, max_len: 78B)
+pub(all) struct AutopilotVersion {
+  capabilities : UInt64
+  flight_sw_version : UInt32
+  middleware_sw_version : UInt32
+  os_sw_version : UInt32
+  board_version : UInt32
+  flight_custom_version : FixedArray[Byte]
+  middleware_custom_version : FixedArray[Byte]
+  os_custom_version : FixedArray[Byte]
+  vendor_id : UInt32
+  product_id : UInt32
+  uid : UInt64
+  uid2 : FixedArray[Byte]
+} derive(Eq, Debug)
+
+///|
+pub extend AutopilotVersion with Eq::{not_equal, equal}
+
+///|
+pub extend AutopilotVersion with @debug.Debug::{to_repr}
+
+///|
+pub fn AutopilotVersion::msg_id() -> UInt32 {
+  148U
+}
+
+///|
+pub fn AutopilotVersion::crc_extra() -> Byte {
+  b'\xB2'
+}
+
+///|
+pub fn AutopilotVersion::base_payload_len() -> Int32 {
+  60
+}
+
+///|
+pub fn AutopilotVersion::max_payload_len() -> Int32 {
+  78
+}
+
+///|
+/// Serialize `AutopilotVersion` into wire-ordered little-endian payload bytes.
+pub fn AutopilotVersion::encode_payload(
+  self : AutopilotVersion,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=78)
+  writer_.write_uint64(self.capabilities)
+  writer_.write_uint64(self.uid)
+  writer_.write_uint32(self.flight_sw_version)
+  writer_.write_uint32(self.middleware_sw_version)
+  writer_.write_uint32(self.os_sw_version)
+  writer_.write_uint32(self.board_version)
+  writer_.write_uint16(self.vendor_id)
+  writer_.write_uint16(self.product_id)
+  for idx_ = 0; idx_ < 8; idx_ = idx_ + 1 {
+    let elem_ = if idx_ < self.flight_custom_version.length() {
+      self.flight_custom_version[idx_]
+    } else {
+      b'\x00'
+    }
+    writer_.write_uint8(elem_)
+  }
+  for idx_ = 0; idx_ < 8; idx_ = idx_ + 1 {
+    let elem_ = if idx_ < self.middleware_custom_version.length() {
+      self.middleware_custom_version[idx_]
+    } else {
+      b'\x00'
+    }
+    writer_.write_uint8(elem_)
+  }
+  for idx_ = 0; idx_ < 8; idx_ = idx_ + 1 {
+    let elem_ = if idx_ < self.os_custom_version.length() {
+      self.os_custom_version[idx_]
+    } else {
+      b'\x00'
+    }
+    writer_.write_uint8(elem_)
+  }
+  if v2 {
+    for idx_ = 0; idx_ < 18; idx_ = idx_ + 1 {
+      let elem_ = if idx_ < self.uid2.length() {
+        self.uid2[idx_]
+      } else {
+        b'\x00'
+      }
+      writer_.write_uint8(elem_)
+    }
+  }
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `AutopilotVersion` from wire-ordered little-endian payload bytes.
+pub fn AutopilotVersion::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[AutopilotVersion, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let capabilities = match reader_.read_uint64() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let uid = match reader_.read_uint64() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let flight_sw_version = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let middleware_sw_version = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let os_sw_version = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let board_version = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let vendor_id = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let product_id = match reader_.read_uint16() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let flight_custom_version = FixedArray::make(8, b'\x00')
+  for idx_ = 0; idx_ < 8; idx_ = idx_ + 1 {
+    match reader_.read_uint8() {
+      Ok(v) => flight_custom_version[idx_] = v
+      Err(e) => return Err(e)
+    }
+  }
+  let middleware_custom_version = FixedArray::make(8, b'\x00')
+  for idx_ = 0; idx_ < 8; idx_ = idx_ + 1 {
+    match reader_.read_uint8() {
+      Ok(v) => middleware_custom_version[idx_] = v
+      Err(e) => return Err(e)
+    }
+  }
+  let os_custom_version = FixedArray::make(8, b'\x00')
+  for idx_ = 0; idx_ < 8; idx_ = idx_ + 1 {
+    match reader_.read_uint8() {
+      Ok(v) => os_custom_version[idx_] = v
+      Err(e) => return Err(e)
+    }
+  }
+  let uid2 = FixedArray::make(18, b'\x00')
+  for idx_ = 0; idx_ < 18; idx_ = idx_ + 1 {
+    match reader_.read_uint8() {
+      Ok(v) => uid2[idx_] = v
+      Err(e) => return Err(e)
+    }
+  }
+  Ok({
+    capabilities,
+    flight_sw_version,
+    middleware_sw_version,
+    os_sw_version,
+    board_version,
+    flight_custom_version,
+    middleware_custom_version,
+    os_custom_version,
+    vendor_id,
+    product_id,
+    uid,
+    uid2,
+  })
+}
+
+///|
+/// Provides state for additional features.
+/// - MAVLink Message `EXTENDED_SYS_STATE` (ID: 245, CRC_EXTRA: 130, base_len: 2B, max_len: 2B)
+pub(all) struct ExtendedSysState {
+  vtol_state : Byte
+  landed_state : Byte
+} derive(Eq, Debug)
+
+///|
+pub extend ExtendedSysState with Eq::{not_equal, equal}
+
+///|
+pub extend ExtendedSysState with @debug.Debug::{to_repr}
+
+///|
+pub fn ExtendedSysState::msg_id() -> UInt32 {
+  245U
+}
+
+///|
+pub fn ExtendedSysState::crc_extra() -> Byte {
+  b'\x82'
+}
+
+///|
+pub fn ExtendedSysState::base_payload_len() -> Int32 {
+  2
+}
+
+///|
+pub fn ExtendedSysState::max_payload_len() -> Int32 {
+  2
+}
+
+///|
+/// Serialize `ExtendedSysState` into wire-ordered little-endian payload bytes.
+pub fn ExtendedSysState::encode_payload(
+  self : ExtendedSysState,
+  v2~ : Bool = true,
+) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=2)
+  writer_.write_uint8(self.vtol_state)
+  writer_.write_uint8(self.landed_state)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `ExtendedSysState` from wire-ordered little-endian payload bytes.
+pub fn ExtendedSysState::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[ExtendedSysState, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let vtol_state = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let landed_state = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ vtol_state, landed_state, })
 }
 
 ///|
@@ -2339,40 +5336,107 @@ pub fn Statustext::encode_payload(
   self : Statustext,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=54)
-  w.write_uint8(self.severity)
-  w.write_char_array(self.text, 50)
+  let writer_ = PayloadWriter::new(capacity=54)
+  writer_.write_uint8(self.severity)
+  writer_.write_char_array(self.text, 50)
   if v2 {
-    w.write_uint16(self.id)
-    w.write_uint8(self.chunk_seq)
+    writer_.write_uint16(self.id)
+    writer_.write_uint8(self.chunk_seq)
   }
-  w.to_wire_bytes(truncate_zeros=v2)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `Statustext` from wire-ordered little-endian payload bytes.
 pub fn Statustext::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[Statustext, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let severity = match r.read_uint8() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let severity = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let text = match r.read_char_array(50) {
+  let text = match reader_.read_char_array(50) {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let id = match r.read_uint16() {
+  let id = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let chunk_seq = match r.read_uint8() {
+  let chunk_seq = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
   Ok({ severity, text, id, chunk_seq, })
+}
+
+///|
+/// Send a debug value. The index is used to discriminate between values.
+/// - MAVLink Message `DEBUG` (ID: 254, CRC_EXTRA: 46, base_len: 9B, max_len: 9B)
+pub(all) struct MavDebug {
+  time_boot_ms : UInt32
+  ind : Byte
+  value : Float
+} derive(Eq, Debug)
+
+///|
+pub extend MavDebug with Eq::{not_equal, equal}
+
+///|
+pub extend MavDebug with @debug.Debug::{to_repr}
+
+///|
+pub fn MavDebug::msg_id() -> UInt32 {
+  254U
+}
+
+///|
+pub fn MavDebug::crc_extra() -> Byte {
+  b'\x2E'
+}
+
+///|
+pub fn MavDebug::base_payload_len() -> Int32 {
+  9
+}
+
+///|
+pub fn MavDebug::max_payload_len() -> Int32 {
+  9
+}
+
+///|
+/// Serialize `MavDebug` into wire-ordered little-endian payload bytes.
+pub fn MavDebug::encode_payload(self : MavDebug, v2~ : Bool = true) -> Bytes {
+  let writer_ = PayloadWriter::new(capacity=9)
+  writer_.write_uint32(self.time_boot_ms)
+  writer_.write_float(self.value)
+  writer_.write_uint8(self.ind)
+  writer_.to_wire_bytes(truncate_zeros=v2)
+}
+
+///|
+/// Deserialize `MavDebug` from wire-ordered little-endian payload bytes.
+pub fn MavDebug::decode_payload(
+  payload_ : Bytes,
+  v2~ : Bool = true,
+) -> Result[MavDebug, MavError] {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let time_boot_ms = match reader_.read_uint32() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let value = match reader_.read_float() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let ind = match reader_.read_uint8() {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok({ time_boot_ms, ind, value, })
 }
 
 ///|
@@ -2416,29 +5480,29 @@ pub fn LoggingAck::encode_payload(
   self : LoggingAck,
   v2~ : Bool = true,
 ) -> Bytes {
-  let w = PayloadWriter::new(capacity=4)
-  w.write_uint16(self.sequence)
-  w.write_uint8(self.target_system)
-  w.write_uint8(self.target_component)
-  w.to_wire_bytes(truncate_zeros=v2)
+  let writer_ = PayloadWriter::new(capacity=4)
+  writer_.write_uint16(self.sequence)
+  writer_.write_uint8(self.target_system)
+  writer_.write_uint8(self.target_component)
+  writer_.to_wire_bytes(truncate_zeros=v2)
 }
 
 ///|
 /// Deserialize `LoggingAck` from wire-ordered little-endian payload bytes.
 pub fn LoggingAck::decode_payload(
-  payload : Bytes,
+  payload_ : Bytes,
   v2~ : Bool = true,
 ) -> Result[LoggingAck, MavError] {
-  let r = PayloadReader::new(payload, zero_extend=v2)
-  let sequence = match r.read_uint16() {
+  let reader_ = PayloadReader::new(payload_, zero_extend=v2)
+  let sequence = match reader_.read_uint16() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_system = match r.read_uint8() {
+  let target_system = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let target_component = match r.read_uint8() {
+  let target_component = match reader_.read_uint8() {
     Ok(v) => v
     Err(e) => return Err(e)
   }
@@ -2453,22 +5517,100 @@ pub fn lookup_message_crc_extra(msgid : UInt32) -> Byte? {
     1U => Some(SysStatus::crc_extra())
     2U => Some(SystemTime::crc_extra())
     4U => Some(Ping::crc_extra())
+    11U => Some(SetMode::crc_extra())
     20U => Some(ParamRequestRead::crc_extra())
+    21U => Some(ParamRequestList::crc_extra())
     22U => Some(ParamValue::crc_extra())
     23U => Some(ParamSet::crc_extra())
     24U => Some(GpsRawInt::crc_extra())
+    26U => Some(ScaledImu::crc_extra())
+    27U => Some(RawImu::crc_extra())
+    29U => Some(ScaledPressure::crc_extra())
     30U => Some(Attitude::crc_extra())
+    31U => Some(AttitudeQuaternion::crc_extra())
     32U => Some(LocalPositionNed::crc_extra())
     33U => Some(GlobalPositionInt::crc_extra())
     35U => Some(RcChannelsRaw::crc_extra())
+    36U => Some(ServoOutputRaw::crc_extra())
+    40U => Some(MissionRequest::crc_extra())
+    41U => Some(MissionSetCurrent::crc_extra())
+    42U => Some(MissionCurrent::crc_extra())
+    43U => Some(MissionRequestList::crc_extra())
     44U => Some(MissionCount::crc_extra())
+    45U => Some(MissionClearAll::crc_extra())
+    46U => Some(MissionItemReached::crc_extra())
     47U => Some(MissionAck::crc_extra())
     51U => Some(MissionRequestInt::crc_extra())
+    65U => Some(RcChannels::crc_extra())
+    69U => Some(ManualControl::crc_extra())
     73U => Some(MissionItemInt::crc_extra())
+    74U => Some(VfrHud::crc_extra())
+    75U => Some(CommandInt::crc_extra())
     76U => Some(CommandLong::crc_extra())
     77U => Some(CommandAck::crc_extra())
+    80U => Some(CommandCancel::crc_extra())
+    82U => Some(SetAttitudeTarget::crc_extra())
+    111U => Some(Timesync::crc_extra())
+    132U => Some(DistanceSensor::crc_extra())
+    147U => Some(BatteryStatus::crc_extra())
+    148U => Some(AutopilotVersion::crc_extra())
+    245U => Some(ExtendedSysState::crc_extra())
     253U => Some(Statustext::crc_extra())
+    254U => Some(MavDebug::crc_extra())
     268U => Some(LoggingAck::crc_extra())
+    _ => None
+  }
+}
+
+///|
+/// Look up the official MAVLink message name for a known message ID.
+pub fn lookup_message_name(msgid : UInt32) -> String? {
+  match msgid {
+    0U => Some("HEARTBEAT")
+    1U => Some("SYS_STATUS")
+    2U => Some("SYSTEM_TIME")
+    4U => Some("PING")
+    11U => Some("SET_MODE")
+    20U => Some("PARAM_REQUEST_READ")
+    21U => Some("PARAM_REQUEST_LIST")
+    22U => Some("PARAM_VALUE")
+    23U => Some("PARAM_SET")
+    24U => Some("GPS_RAW_INT")
+    26U => Some("SCALED_IMU")
+    27U => Some("RAW_IMU")
+    29U => Some("SCALED_PRESSURE")
+    30U => Some("ATTITUDE")
+    31U => Some("ATTITUDE_QUATERNION")
+    32U => Some("LOCAL_POSITION_NED")
+    33U => Some("GLOBAL_POSITION_INT")
+    35U => Some("RC_CHANNELS_RAW")
+    36U => Some("SERVO_OUTPUT_RAW")
+    40U => Some("MISSION_REQUEST")
+    41U => Some("MISSION_SET_CURRENT")
+    42U => Some("MISSION_CURRENT")
+    43U => Some("MISSION_REQUEST_LIST")
+    44U => Some("MISSION_COUNT")
+    45U => Some("MISSION_CLEAR_ALL")
+    46U => Some("MISSION_ITEM_REACHED")
+    47U => Some("MISSION_ACK")
+    51U => Some("MISSION_REQUEST_INT")
+    65U => Some("RC_CHANNELS")
+    69U => Some("MANUAL_CONTROL")
+    73U => Some("MISSION_ITEM_INT")
+    74U => Some("VFR_HUD")
+    75U => Some("COMMAND_INT")
+    76U => Some("COMMAND_LONG")
+    77U => Some("COMMAND_ACK")
+    80U => Some("COMMAND_CANCEL")
+    82U => Some("SET_ATTITUDE_TARGET")
+    111U => Some("TIMESYNC")
+    132U => Some("DISTANCE_SENSOR")
+    147U => Some("BATTERY_STATUS")
+    148U => Some("AUTOPILOT_VERSION")
+    245U => Some("EXTENDED_SYS_STATE")
+    253U => Some("STATUSTEXT")
+    254U => Some("DEBUG")
+    268U => Some("LOGGING_ACK")
     _ => None
   }
 }
@@ -2480,21 +5622,46 @@ pub(all) enum MavMessage {
   MsgSysStatus(SysStatus)
   MsgSystemTime(SystemTime)
   MsgPing(Ping)
+  MsgSetMode(SetMode)
   MsgParamRequestRead(ParamRequestRead)
+  MsgParamRequestList(ParamRequestList)
   MsgParamValue(ParamValue)
   MsgParamSet(ParamSet)
   MsgGpsRawInt(GpsRawInt)
+  MsgScaledImu(ScaledImu)
+  MsgRawImu(RawImu)
+  MsgScaledPressure(ScaledPressure)
   MsgAttitude(Attitude)
+  MsgAttitudeQuaternion(AttitudeQuaternion)
   MsgLocalPositionNed(LocalPositionNed)
   MsgGlobalPositionInt(GlobalPositionInt)
   MsgRcChannelsRaw(RcChannelsRaw)
+  MsgServoOutputRaw(ServoOutputRaw)
+  MsgMissionRequest(MissionRequest)
+  MsgMissionSetCurrent(MissionSetCurrent)
+  MsgMissionCurrent(MissionCurrent)
+  MsgMissionRequestList(MissionRequestList)
   MsgMissionCount(MissionCount)
+  MsgMissionClearAll(MissionClearAll)
+  MsgMissionItemReached(MissionItemReached)
   MsgMissionAck(MissionAck)
   MsgMissionRequestInt(MissionRequestInt)
+  MsgRcChannels(RcChannels)
+  MsgManualControl(ManualControl)
   MsgMissionItemInt(MissionItemInt)
+  MsgVfrHud(VfrHud)
+  MsgCommandInt(CommandInt)
   MsgCommandLong(CommandLong)
   MsgCommandAck(CommandAck)
+  MsgCommandCancel(CommandCancel)
+  MsgSetAttitudeTarget(SetAttitudeTarget)
+  MsgTimesync(Timesync)
+  MsgDistanceSensor(DistanceSensor)
+  MsgBatteryStatus(BatteryStatus)
+  MsgAutopilotVersion(AutopilotVersion)
+  MsgExtendedSysState(ExtendedSysState)
   MsgStatustext(Statustext)
+  MsgMavDebug(MavDebug)
   MsgLoggingAck(LoggingAck)
 } derive(Eq, Debug)
 
@@ -2512,22 +5679,99 @@ pub fn MavMessage::msg_id(self : MavMessage) -> UInt32 {
     MsgSysStatus(_) => 1U
     MsgSystemTime(_) => 2U
     MsgPing(_) => 4U
+    MsgSetMode(_) => 11U
     MsgParamRequestRead(_) => 20U
+    MsgParamRequestList(_) => 21U
     MsgParamValue(_) => 22U
     MsgParamSet(_) => 23U
     MsgGpsRawInt(_) => 24U
+    MsgScaledImu(_) => 26U
+    MsgRawImu(_) => 27U
+    MsgScaledPressure(_) => 29U
     MsgAttitude(_) => 30U
+    MsgAttitudeQuaternion(_) => 31U
     MsgLocalPositionNed(_) => 32U
     MsgGlobalPositionInt(_) => 33U
     MsgRcChannelsRaw(_) => 35U
+    MsgServoOutputRaw(_) => 36U
+    MsgMissionRequest(_) => 40U
+    MsgMissionSetCurrent(_) => 41U
+    MsgMissionCurrent(_) => 42U
+    MsgMissionRequestList(_) => 43U
     MsgMissionCount(_) => 44U
+    MsgMissionClearAll(_) => 45U
+    MsgMissionItemReached(_) => 46U
     MsgMissionAck(_) => 47U
     MsgMissionRequestInt(_) => 51U
+    MsgRcChannels(_) => 65U
+    MsgManualControl(_) => 69U
     MsgMissionItemInt(_) => 73U
+    MsgVfrHud(_) => 74U
+    MsgCommandInt(_) => 75U
     MsgCommandLong(_) => 76U
     MsgCommandAck(_) => 77U
+    MsgCommandCancel(_) => 80U
+    MsgSetAttitudeTarget(_) => 82U
+    MsgTimesync(_) => 111U
+    MsgDistanceSensor(_) => 132U
+    MsgBatteryStatus(_) => 147U
+    MsgAutopilotVersion(_) => 148U
+    MsgExtendedSysState(_) => 245U
     MsgStatustext(_) => 253U
+    MsgMavDebug(_) => 254U
     MsgLoggingAck(_) => 268U
+  }
+}
+
+///|
+/// Return the official MAVLink message name of `self`.
+pub fn MavMessage::msg_name(self : MavMessage) -> String {
+  match self {
+    MsgHeartbeat(_) => "HEARTBEAT"
+    MsgSysStatus(_) => "SYS_STATUS"
+    MsgSystemTime(_) => "SYSTEM_TIME"
+    MsgPing(_) => "PING"
+    MsgSetMode(_) => "SET_MODE"
+    MsgParamRequestRead(_) => "PARAM_REQUEST_READ"
+    MsgParamRequestList(_) => "PARAM_REQUEST_LIST"
+    MsgParamValue(_) => "PARAM_VALUE"
+    MsgParamSet(_) => "PARAM_SET"
+    MsgGpsRawInt(_) => "GPS_RAW_INT"
+    MsgScaledImu(_) => "SCALED_IMU"
+    MsgRawImu(_) => "RAW_IMU"
+    MsgScaledPressure(_) => "SCALED_PRESSURE"
+    MsgAttitude(_) => "ATTITUDE"
+    MsgAttitudeQuaternion(_) => "ATTITUDE_QUATERNION"
+    MsgLocalPositionNed(_) => "LOCAL_POSITION_NED"
+    MsgGlobalPositionInt(_) => "GLOBAL_POSITION_INT"
+    MsgRcChannelsRaw(_) => "RC_CHANNELS_RAW"
+    MsgServoOutputRaw(_) => "SERVO_OUTPUT_RAW"
+    MsgMissionRequest(_) => "MISSION_REQUEST"
+    MsgMissionSetCurrent(_) => "MISSION_SET_CURRENT"
+    MsgMissionCurrent(_) => "MISSION_CURRENT"
+    MsgMissionRequestList(_) => "MISSION_REQUEST_LIST"
+    MsgMissionCount(_) => "MISSION_COUNT"
+    MsgMissionClearAll(_) => "MISSION_CLEAR_ALL"
+    MsgMissionItemReached(_) => "MISSION_ITEM_REACHED"
+    MsgMissionAck(_) => "MISSION_ACK"
+    MsgMissionRequestInt(_) => "MISSION_REQUEST_INT"
+    MsgRcChannels(_) => "RC_CHANNELS"
+    MsgManualControl(_) => "MANUAL_CONTROL"
+    MsgMissionItemInt(_) => "MISSION_ITEM_INT"
+    MsgVfrHud(_) => "VFR_HUD"
+    MsgCommandInt(_) => "COMMAND_INT"
+    MsgCommandLong(_) => "COMMAND_LONG"
+    MsgCommandAck(_) => "COMMAND_ACK"
+    MsgCommandCancel(_) => "COMMAND_CANCEL"
+    MsgSetAttitudeTarget(_) => "SET_ATTITUDE_TARGET"
+    MsgTimesync(_) => "TIMESYNC"
+    MsgDistanceSensor(_) => "DISTANCE_SENSOR"
+    MsgBatteryStatus(_) => "BATTERY_STATUS"
+    MsgAutopilotVersion(_) => "AUTOPILOT_VERSION"
+    MsgExtendedSysState(_) => "EXTENDED_SYS_STATE"
+    MsgStatustext(_) => "STATUSTEXT"
+    MsgMavDebug(_) => "DEBUG"
+    MsgLoggingAck(_) => "LOGGING_ACK"
   }
 }
 
@@ -2539,22 +5783,151 @@ pub fn MavMessage::crc_extra(self : MavMessage) -> Byte {
     MsgSysStatus(_) => SysStatus::crc_extra()
     MsgSystemTime(_) => SystemTime::crc_extra()
     MsgPing(_) => Ping::crc_extra()
+    MsgSetMode(_) => SetMode::crc_extra()
     MsgParamRequestRead(_) => ParamRequestRead::crc_extra()
+    MsgParamRequestList(_) => ParamRequestList::crc_extra()
     MsgParamValue(_) => ParamValue::crc_extra()
     MsgParamSet(_) => ParamSet::crc_extra()
     MsgGpsRawInt(_) => GpsRawInt::crc_extra()
+    MsgScaledImu(_) => ScaledImu::crc_extra()
+    MsgRawImu(_) => RawImu::crc_extra()
+    MsgScaledPressure(_) => ScaledPressure::crc_extra()
     MsgAttitude(_) => Attitude::crc_extra()
+    MsgAttitudeQuaternion(_) => AttitudeQuaternion::crc_extra()
     MsgLocalPositionNed(_) => LocalPositionNed::crc_extra()
     MsgGlobalPositionInt(_) => GlobalPositionInt::crc_extra()
     MsgRcChannelsRaw(_) => RcChannelsRaw::crc_extra()
+    MsgServoOutputRaw(_) => ServoOutputRaw::crc_extra()
+    MsgMissionRequest(_) => MissionRequest::crc_extra()
+    MsgMissionSetCurrent(_) => MissionSetCurrent::crc_extra()
+    MsgMissionCurrent(_) => MissionCurrent::crc_extra()
+    MsgMissionRequestList(_) => MissionRequestList::crc_extra()
     MsgMissionCount(_) => MissionCount::crc_extra()
+    MsgMissionClearAll(_) => MissionClearAll::crc_extra()
+    MsgMissionItemReached(_) => MissionItemReached::crc_extra()
     MsgMissionAck(_) => MissionAck::crc_extra()
     MsgMissionRequestInt(_) => MissionRequestInt::crc_extra()
+    MsgRcChannels(_) => RcChannels::crc_extra()
+    MsgManualControl(_) => ManualControl::crc_extra()
     MsgMissionItemInt(_) => MissionItemInt::crc_extra()
+    MsgVfrHud(_) => VfrHud::crc_extra()
+    MsgCommandInt(_) => CommandInt::crc_extra()
     MsgCommandLong(_) => CommandLong::crc_extra()
     MsgCommandAck(_) => CommandAck::crc_extra()
+    MsgCommandCancel(_) => CommandCancel::crc_extra()
+    MsgSetAttitudeTarget(_) => SetAttitudeTarget::crc_extra()
+    MsgTimesync(_) => Timesync::crc_extra()
+    MsgDistanceSensor(_) => DistanceSensor::crc_extra()
+    MsgBatteryStatus(_) => BatteryStatus::crc_extra()
+    MsgAutopilotVersion(_) => AutopilotVersion::crc_extra()
+    MsgExtendedSysState(_) => ExtendedSysState::crc_extra()
     MsgStatustext(_) => Statustext::crc_extra()
+    MsgMavDebug(_) => MavDebug::crc_extra()
     MsgLoggingAck(_) => LoggingAck::crc_extra()
+  }
+}
+
+///|
+/// Return the base (non-extension) payload length in bytes of `self`.
+pub fn MavMessage::base_payload_len(self : MavMessage) -> Int32 {
+  match self {
+    MsgHeartbeat(_) => Heartbeat::base_payload_len()
+    MsgSysStatus(_) => SysStatus::base_payload_len()
+    MsgSystemTime(_) => SystemTime::base_payload_len()
+    MsgPing(_) => Ping::base_payload_len()
+    MsgSetMode(_) => SetMode::base_payload_len()
+    MsgParamRequestRead(_) => ParamRequestRead::base_payload_len()
+    MsgParamRequestList(_) => ParamRequestList::base_payload_len()
+    MsgParamValue(_) => ParamValue::base_payload_len()
+    MsgParamSet(_) => ParamSet::base_payload_len()
+    MsgGpsRawInt(_) => GpsRawInt::base_payload_len()
+    MsgScaledImu(_) => ScaledImu::base_payload_len()
+    MsgRawImu(_) => RawImu::base_payload_len()
+    MsgScaledPressure(_) => ScaledPressure::base_payload_len()
+    MsgAttitude(_) => Attitude::base_payload_len()
+    MsgAttitudeQuaternion(_) => AttitudeQuaternion::base_payload_len()
+    MsgLocalPositionNed(_) => LocalPositionNed::base_payload_len()
+    MsgGlobalPositionInt(_) => GlobalPositionInt::base_payload_len()
+    MsgRcChannelsRaw(_) => RcChannelsRaw::base_payload_len()
+    MsgServoOutputRaw(_) => ServoOutputRaw::base_payload_len()
+    MsgMissionRequest(_) => MissionRequest::base_payload_len()
+    MsgMissionSetCurrent(_) => MissionSetCurrent::base_payload_len()
+    MsgMissionCurrent(_) => MissionCurrent::base_payload_len()
+    MsgMissionRequestList(_) => MissionRequestList::base_payload_len()
+    MsgMissionCount(_) => MissionCount::base_payload_len()
+    MsgMissionClearAll(_) => MissionClearAll::base_payload_len()
+    MsgMissionItemReached(_) => MissionItemReached::base_payload_len()
+    MsgMissionAck(_) => MissionAck::base_payload_len()
+    MsgMissionRequestInt(_) => MissionRequestInt::base_payload_len()
+    MsgRcChannels(_) => RcChannels::base_payload_len()
+    MsgManualControl(_) => ManualControl::base_payload_len()
+    MsgMissionItemInt(_) => MissionItemInt::base_payload_len()
+    MsgVfrHud(_) => VfrHud::base_payload_len()
+    MsgCommandInt(_) => CommandInt::base_payload_len()
+    MsgCommandLong(_) => CommandLong::base_payload_len()
+    MsgCommandAck(_) => CommandAck::base_payload_len()
+    MsgCommandCancel(_) => CommandCancel::base_payload_len()
+    MsgSetAttitudeTarget(_) => SetAttitudeTarget::base_payload_len()
+    MsgTimesync(_) => Timesync::base_payload_len()
+    MsgDistanceSensor(_) => DistanceSensor::base_payload_len()
+    MsgBatteryStatus(_) => BatteryStatus::base_payload_len()
+    MsgAutopilotVersion(_) => AutopilotVersion::base_payload_len()
+    MsgExtendedSysState(_) => ExtendedSysState::base_payload_len()
+    MsgStatustext(_) => Statustext::base_payload_len()
+    MsgMavDebug(_) => MavDebug::base_payload_len()
+    MsgLoggingAck(_) => LoggingAck::base_payload_len()
+  }
+}
+
+///|
+/// Return the maximum (v2 with extensions) payload length in bytes of `self`.
+pub fn MavMessage::max_payload_len(self : MavMessage) -> Int32 {
+  match self {
+    MsgHeartbeat(_) => Heartbeat::max_payload_len()
+    MsgSysStatus(_) => SysStatus::max_payload_len()
+    MsgSystemTime(_) => SystemTime::max_payload_len()
+    MsgPing(_) => Ping::max_payload_len()
+    MsgSetMode(_) => SetMode::max_payload_len()
+    MsgParamRequestRead(_) => ParamRequestRead::max_payload_len()
+    MsgParamRequestList(_) => ParamRequestList::max_payload_len()
+    MsgParamValue(_) => ParamValue::max_payload_len()
+    MsgParamSet(_) => ParamSet::max_payload_len()
+    MsgGpsRawInt(_) => GpsRawInt::max_payload_len()
+    MsgScaledImu(_) => ScaledImu::max_payload_len()
+    MsgRawImu(_) => RawImu::max_payload_len()
+    MsgScaledPressure(_) => ScaledPressure::max_payload_len()
+    MsgAttitude(_) => Attitude::max_payload_len()
+    MsgAttitudeQuaternion(_) => AttitudeQuaternion::max_payload_len()
+    MsgLocalPositionNed(_) => LocalPositionNed::max_payload_len()
+    MsgGlobalPositionInt(_) => GlobalPositionInt::max_payload_len()
+    MsgRcChannelsRaw(_) => RcChannelsRaw::max_payload_len()
+    MsgServoOutputRaw(_) => ServoOutputRaw::max_payload_len()
+    MsgMissionRequest(_) => MissionRequest::max_payload_len()
+    MsgMissionSetCurrent(_) => MissionSetCurrent::max_payload_len()
+    MsgMissionCurrent(_) => MissionCurrent::max_payload_len()
+    MsgMissionRequestList(_) => MissionRequestList::max_payload_len()
+    MsgMissionCount(_) => MissionCount::max_payload_len()
+    MsgMissionClearAll(_) => MissionClearAll::max_payload_len()
+    MsgMissionItemReached(_) => MissionItemReached::max_payload_len()
+    MsgMissionAck(_) => MissionAck::max_payload_len()
+    MsgMissionRequestInt(_) => MissionRequestInt::max_payload_len()
+    MsgRcChannels(_) => RcChannels::max_payload_len()
+    MsgManualControl(_) => ManualControl::max_payload_len()
+    MsgMissionItemInt(_) => MissionItemInt::max_payload_len()
+    MsgVfrHud(_) => VfrHud::max_payload_len()
+    MsgCommandInt(_) => CommandInt::max_payload_len()
+    MsgCommandLong(_) => CommandLong::max_payload_len()
+    MsgCommandAck(_) => CommandAck::max_payload_len()
+    MsgCommandCancel(_) => CommandCancel::max_payload_len()
+    MsgSetAttitudeTarget(_) => SetAttitudeTarget::max_payload_len()
+    MsgTimesync(_) => Timesync::max_payload_len()
+    MsgDistanceSensor(_) => DistanceSensor::max_payload_len()
+    MsgBatteryStatus(_) => BatteryStatus::max_payload_len()
+    MsgAutopilotVersion(_) => AutopilotVersion::max_payload_len()
+    MsgExtendedSysState(_) => ExtendedSysState::max_payload_len()
+    MsgStatustext(_) => Statustext::max_payload_len()
+    MsgMavDebug(_) => MavDebug::max_payload_len()
+    MsgLoggingAck(_) => LoggingAck::max_payload_len()
   }
 }
 
@@ -2569,21 +5942,46 @@ pub fn MavMessage::encode_payload(
     MsgSysStatus(m) => m.encode_payload(v2~)
     MsgSystemTime(m) => m.encode_payload(v2~)
     MsgPing(m) => m.encode_payload(v2~)
+    MsgSetMode(m) => m.encode_payload(v2~)
     MsgParamRequestRead(m) => m.encode_payload(v2~)
+    MsgParamRequestList(m) => m.encode_payload(v2~)
     MsgParamValue(m) => m.encode_payload(v2~)
     MsgParamSet(m) => m.encode_payload(v2~)
     MsgGpsRawInt(m) => m.encode_payload(v2~)
+    MsgScaledImu(m) => m.encode_payload(v2~)
+    MsgRawImu(m) => m.encode_payload(v2~)
+    MsgScaledPressure(m) => m.encode_payload(v2~)
     MsgAttitude(m) => m.encode_payload(v2~)
+    MsgAttitudeQuaternion(m) => m.encode_payload(v2~)
     MsgLocalPositionNed(m) => m.encode_payload(v2~)
     MsgGlobalPositionInt(m) => m.encode_payload(v2~)
     MsgRcChannelsRaw(m) => m.encode_payload(v2~)
+    MsgServoOutputRaw(m) => m.encode_payload(v2~)
+    MsgMissionRequest(m) => m.encode_payload(v2~)
+    MsgMissionSetCurrent(m) => m.encode_payload(v2~)
+    MsgMissionCurrent(m) => m.encode_payload(v2~)
+    MsgMissionRequestList(m) => m.encode_payload(v2~)
     MsgMissionCount(m) => m.encode_payload(v2~)
+    MsgMissionClearAll(m) => m.encode_payload(v2~)
+    MsgMissionItemReached(m) => m.encode_payload(v2~)
     MsgMissionAck(m) => m.encode_payload(v2~)
     MsgMissionRequestInt(m) => m.encode_payload(v2~)
+    MsgRcChannels(m) => m.encode_payload(v2~)
+    MsgManualControl(m) => m.encode_payload(v2~)
     MsgMissionItemInt(m) => m.encode_payload(v2~)
+    MsgVfrHud(m) => m.encode_payload(v2~)
+    MsgCommandInt(m) => m.encode_payload(v2~)
     MsgCommandLong(m) => m.encode_payload(v2~)
     MsgCommandAck(m) => m.encode_payload(v2~)
+    MsgCommandCancel(m) => m.encode_payload(v2~)
+    MsgSetAttitudeTarget(m) => m.encode_payload(v2~)
+    MsgTimesync(m) => m.encode_payload(v2~)
+    MsgDistanceSensor(m) => m.encode_payload(v2~)
+    MsgBatteryStatus(m) => m.encode_payload(v2~)
+    MsgAutopilotVersion(m) => m.encode_payload(v2~)
+    MsgExtendedSysState(m) => m.encode_payload(v2~)
     MsgStatustext(m) => m.encode_payload(v2~)
+    MsgMavDebug(m) => m.encode_payload(v2~)
     MsgLoggingAck(m) => m.encode_payload(v2~)
   }
 }
@@ -2645,9 +6043,19 @@ pub fn MavMessage::decode_from_frame(
         Ok(m) => Ok(MsgPing(m))
         Err(e) => Err(e)
       }
+    11U =>
+      match SetMode::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgSetMode(m))
+        Err(e) => Err(e)
+      }
     20U =>
       match ParamRequestRead::decode_payload(frame.payload, v2=is_v2) {
         Ok(m) => Ok(MsgParamRequestRead(m))
+        Err(e) => Err(e)
+      }
+    21U =>
+      match ParamRequestList::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgParamRequestList(m))
         Err(e) => Err(e)
       }
     22U =>
@@ -2665,9 +6073,29 @@ pub fn MavMessage::decode_from_frame(
         Ok(m) => Ok(MsgGpsRawInt(m))
         Err(e) => Err(e)
       }
+    26U =>
+      match ScaledImu::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgScaledImu(m))
+        Err(e) => Err(e)
+      }
+    27U =>
+      match RawImu::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgRawImu(m))
+        Err(e) => Err(e)
+      }
+    29U =>
+      match ScaledPressure::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgScaledPressure(m))
+        Err(e) => Err(e)
+      }
     30U =>
       match Attitude::decode_payload(frame.payload, v2=is_v2) {
         Ok(m) => Ok(MsgAttitude(m))
+        Err(e) => Err(e)
+      }
+    31U =>
+      match AttitudeQuaternion::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgAttitudeQuaternion(m))
         Err(e) => Err(e)
       }
     32U =>
@@ -2685,9 +6113,44 @@ pub fn MavMessage::decode_from_frame(
         Ok(m) => Ok(MsgRcChannelsRaw(m))
         Err(e) => Err(e)
       }
+    36U =>
+      match ServoOutputRaw::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgServoOutputRaw(m))
+        Err(e) => Err(e)
+      }
+    40U =>
+      match MissionRequest::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMissionRequest(m))
+        Err(e) => Err(e)
+      }
+    41U =>
+      match MissionSetCurrent::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMissionSetCurrent(m))
+        Err(e) => Err(e)
+      }
+    42U =>
+      match MissionCurrent::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMissionCurrent(m))
+        Err(e) => Err(e)
+      }
+    43U =>
+      match MissionRequestList::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMissionRequestList(m))
+        Err(e) => Err(e)
+      }
     44U =>
       match MissionCount::decode_payload(frame.payload, v2=is_v2) {
         Ok(m) => Ok(MsgMissionCount(m))
+        Err(e) => Err(e)
+      }
+    45U =>
+      match MissionClearAll::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMissionClearAll(m))
+        Err(e) => Err(e)
+      }
+    46U =>
+      match MissionItemReached::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMissionItemReached(m))
         Err(e) => Err(e)
       }
     47U =>
@@ -2700,9 +6163,29 @@ pub fn MavMessage::decode_from_frame(
         Ok(m) => Ok(MsgMissionRequestInt(m))
         Err(e) => Err(e)
       }
+    65U =>
+      match RcChannels::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgRcChannels(m))
+        Err(e) => Err(e)
+      }
+    69U =>
+      match ManualControl::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgManualControl(m))
+        Err(e) => Err(e)
+      }
     73U =>
       match MissionItemInt::decode_payload(frame.payload, v2=is_v2) {
         Ok(m) => Ok(MsgMissionItemInt(m))
+        Err(e) => Err(e)
+      }
+    74U =>
+      match VfrHud::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgVfrHud(m))
+        Err(e) => Err(e)
+      }
+    75U =>
+      match CommandInt::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgCommandInt(m))
         Err(e) => Err(e)
       }
     76U =>
@@ -2715,9 +6198,49 @@ pub fn MavMessage::decode_from_frame(
         Ok(m) => Ok(MsgCommandAck(m))
         Err(e) => Err(e)
       }
+    80U =>
+      match CommandCancel::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgCommandCancel(m))
+        Err(e) => Err(e)
+      }
+    82U =>
+      match SetAttitudeTarget::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgSetAttitudeTarget(m))
+        Err(e) => Err(e)
+      }
+    111U =>
+      match Timesync::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgTimesync(m))
+        Err(e) => Err(e)
+      }
+    132U =>
+      match DistanceSensor::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgDistanceSensor(m))
+        Err(e) => Err(e)
+      }
+    147U =>
+      match BatteryStatus::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgBatteryStatus(m))
+        Err(e) => Err(e)
+      }
+    148U =>
+      match AutopilotVersion::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgAutopilotVersion(m))
+        Err(e) => Err(e)
+      }
+    245U =>
+      match ExtendedSysState::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgExtendedSysState(m))
+        Err(e) => Err(e)
+      }
     253U =>
       match Statustext::decode_payload(frame.payload, v2=is_v2) {
         Ok(m) => Ok(MsgStatustext(m))
+        Err(e) => Err(e)
+      }
+    254U =>
+      match MavDebug::decode_payload(frame.payload, v2=is_v2) {
+        Ok(m) => Ok(MsgMavDebug(m))
         Err(e) => Err(e)
       }
     268U =>

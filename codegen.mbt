@@ -33,7 +33,8 @@ pub fn to_pascal_case(raw : String) -> String {
 }
 
 ///|
-/// Ensure generated enum or message struct names do not collide with core protocol types.
+/// Ensure generated enum or message struct names do not collide with core protocol types
+/// or standard library trait/type identifiers (such as `Debug` from MAVLink `DEBUG` #254).
 pub fn sanitize_type_name(pascal_name : String) -> String {
   match pascal_name {
     "MavFrame" => "MavCoordFrame"
@@ -41,6 +42,16 @@ pub fn sanitize_type_name(pascal_name : String) -> String {
     "MavError" => "MavMsgError"
     "MavSignature" => "MavMsgSignature"
     "MavMessage" => "MavMsgPayload"
+    "Debug" => "MavDebug"
+    "Eq" => "MavEq"
+    "Show" => "MavShow"
+    "Compare" => "MavCompare"
+    "Hash" => "MavHash"
+    "Default" => "MavDefault"
+    "Bytes" => "MavBytes"
+    "String" => "MavString"
+    "Result" => "MavResultType"
+    "Option" => "MavOption"
     _ => pascal_name
   }
 }
@@ -402,7 +413,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
       ", v2~ : Bool = true) -> Bytes {\n",
     )
     sb.write_string(
-      "  let w = PayloadWriter::new(capacity=" +
+      "  let writer_ = PayloadWriter::new(capacity=" +
       int_to_dec(msg.max_payload_len) +
       ")\n",
     )
@@ -418,12 +429,17 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
       match wf.parsed_type {
         Scalar(prim, _) =>
           sb.write_string(
-            indent + "w." + write_scalar_method(prim) + "(self." + fname + ")\n",
+            indent +
+            "writer_." +
+            write_scalar_method(prim) +
+            "(self." +
+            fname +
+            ")\n",
           )
         FixedArrayType(Char, len) =>
           sb.write_string(
             indent +
-            "w.write_char_array(self." +
+            "writer_.write_char_array(self." +
             fname +
             ", " +
             int_to_dec(len) +
@@ -431,20 +447,23 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
           )
         FixedArrayType(prim, len) => {
           sb.write_string(
-            indent + "for i = 0; i < " + int_to_dec(len) + "; i = i + 1 {\n",
+            indent +
+            "for idx_ = 0; idx_ < " +
+            int_to_dec(len) +
+            "; idx_ = idx_ + 1 {\n",
           )
           sb.write_string(
             indent +
-            "  let elem = if i < self." +
+            "  let elem_ = if idx_ < self." +
             fname +
             ".length() { self." +
             fname +
-            "[i] } else { " +
+            "[idx_] } else { " +
             default_scalar_expr(prim) +
             " }\n",
           )
           sb.write_string(
-            indent + "  w." + write_scalar_method(prim) + "(elem)\n",
+            indent + "  writer_." + write_scalar_method(prim) + "(elem_)\n",
           )
           sb.write_string(indent + "}\n")
         }
@@ -453,7 +472,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     if has_ext {
       sb.write_string("  }\n")
     }
-    sb.write_string("  w.to_wire_bytes(truncate_zeros=v2)\n}\n\n")
+    sb.write_string("  writer_.to_wire_bytes(truncate_zeros=v2)\n}\n\n")
 
     // decode_payload
     sb.write_string("///|\n")
@@ -465,11 +484,13 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     sb.write_string(
       "pub fn " +
       msg_pascal +
-      "::decode_payload(payload : Bytes, v2~ : Bool = true) -> Result[" +
+      "::decode_payload(payload_ : Bytes, v2~ : Bool = true) -> Result[" +
       msg_pascal +
       ", MavError] {\n",
     )
-    sb.write_string("  let r = PayloadReader::new(payload, zero_extend=v2)\n")
+    sb.write_string(
+      "  let reader_ = PayloadReader::new(payload_, zero_extend=v2)\n",
+    )
     for wf in msg.wire_ordered_fields {
       let fname = sanitize_field_name(wf.name)
       match wf.parsed_type {
@@ -477,7 +498,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
           sb.write_string(
             "  let " +
             fname +
-            " = match r." +
+            " = match reader_." +
             read_scalar_method(prim) +
             "() {\n",
           )
@@ -487,7 +508,7 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
           sb.write_string(
             "  let " +
             fname +
-            " = match r.read_char_array(" +
+            " = match reader_.read_char_array(" +
             int_to_dec(len) +
             ") {\n",
           )
@@ -504,10 +525,14 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
             ")\n",
           )
           sb.write_string(
-            "  for i = 0; i < " + int_to_dec(len) + "; i = i + 1 {\n",
+            "  for idx_ = 0; idx_ < " +
+            int_to_dec(len) +
+            "; idx_ = idx_ + 1 {\n",
           )
-          sb.write_string("    match r." + read_scalar_method(prim) + "() {\n")
-          sb.write_string("      Ok(v) => " + fname + "[i] = v\n")
+          sb.write_string(
+            "    match reader_." + read_scalar_method(prim) + "() {\n",
+          )
+          sb.write_string("      Ok(v) => " + fname + "[idx_] = v\n")
           sb.write_string("      Err(e) => return Err(e)\n    }\n  }\n")
         }
       }
@@ -543,6 +568,19 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     sb.write_string("    _ => None\n  }\n}\n\n")
 
     sb.write_string("///|\n")
+    sb.write_string(
+      "/// Look up the official MAVLink message name for a known message ID.\n",
+    )
+    sb.write_string("pub fn lookup_message_name(msgid : UInt) -> String? {\n")
+    sb.write_string("  match msgid {\n")
+    for msg in schema.messages {
+      sb.write_string(
+        "    " + uint_to_dec(msg.id) + "U => Some(\"" + msg.name + "\")\n",
+      )
+    }
+    sb.write_string("    _ => None\n  }\n}\n\n")
+
+    sb.write_string("///|\n")
     sb.write_string("/// Unified top-level MAVLink dialect message sum type.\n")
     sb.write_string("pub(all) enum MavMessage {\n")
     for msg in schema.messages {
@@ -568,6 +606,18 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
     sb.write_string("  }\n}\n\n")
 
     sb.write_string("///|\n")
+    sb.write_string("/// Return the official MAVLink message name of `self`.\n")
+    sb.write_string(
+      "pub fn MavMessage::msg_name(self : MavMessage) -> String {\n",
+    )
+    sb.write_string("  match self {\n")
+    for msg in schema.messages {
+      let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
+      sb.write_string("    Msg" + msg_pascal + "(_) => \"" + msg.name + "\"\n")
+    }
+    sb.write_string("  }\n}\n\n")
+
+    sb.write_string("///|\n")
     sb.write_string("/// Return the `CRC_EXTRA` seed byte of `self`.\n")
     sb.write_string(
       "pub fn MavMessage::crc_extra(self : MavMessage) -> Byte {\n",
@@ -577,6 +627,46 @@ pub fn generate_moonbit_code(schema : DialectSchema) -> String {
       let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
       sb.write_string(
         "    Msg" + msg_pascal + "(_) => " + msg_pascal + "::crc_extra()\n",
+      )
+    }
+    sb.write_string("  }\n}\n\n")
+
+    sb.write_string("///|\n")
+    sb.write_string(
+      "/// Return the base (non-extension) payload length in bytes of `self`.\n",
+    )
+    sb.write_string(
+      "pub fn MavMessage::base_payload_len(self : MavMessage) -> Int {\n",
+    )
+    sb.write_string("  match self {\n")
+    for msg in schema.messages {
+      let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
+      sb.write_string(
+        "    Msg" +
+        msg_pascal +
+        "(_) => " +
+        msg_pascal +
+        "::base_payload_len()\n",
+      )
+    }
+    sb.write_string("  }\n}\n\n")
+
+    sb.write_string("///|\n")
+    sb.write_string(
+      "/// Return the maximum (v2 with extensions) payload length in bytes of `self`.\n",
+    )
+    sb.write_string(
+      "pub fn MavMessage::max_payload_len(self : MavMessage) -> Int {\n",
+    )
+    sb.write_string("  match self {\n")
+    for msg in schema.messages {
+      let msg_pascal = sanitize_type_name(to_pascal_case(msg.name))
+      sb.write_string(
+        "    Msg" +
+        msg_pascal +
+        "(_) => " +
+        msg_pascal +
+        "::max_payload_len()\n",
       )
     }
     sb.write_string("  }\n}\n\n")
@@ -645,6 +735,19 @@ pub fn generate_moonbit_from_xml(
   xml_text : String,
 ) -> Result[(DialectSchema, String), MavError] {
   match parse_dialect_xml(xml_text) {
+    Ok(schema) => Ok((schema, generate_moonbit_code(schema)))
+    Err(e) => Err(e)
+  }
+}
+
+///|
+/// Recursively parse a root MAVLink XML dialect and all transitive `<include>` files,
+/// then generate complete MoonBit source code for the unified dialect.
+pub fn generate_moonbit_from_xml_with_includes(
+  root_file_name : String,
+  xml_resolver : (String) -> String?,
+) -> Result[(DialectSchema, String), MavError] {
+  match parse_dialect_xml_with_includes(root_file_name, xml_resolver) {
     Ok(schema) => Ok((schema, generate_moonbit_code(schema)))
     Err(e) => Err(e)
   }

@@ -91,19 +91,22 @@ test "blackbox: enum roundtrip for MavAutopilot, MavType, MavState, MavCmd, MavR
 }
 
 ///|
-test "blackbox: self-hosting verification of official_standard_xml (11 enums, 20 messages)" {
+test "blackbox: self-hosting verification of official_standard_xml (18 enums, 45 messages)" {
   let (schema, code) = match
     @mavlink.generate_moonbit_from_xml(@mavlink.official_standard_xml) {
     Ok(res) => res
     Err(e) => fail(e.to_repr().to_string())
   }
   assert_eq(schema.version, 3)
-  assert_eq(schema.enums.length(), 11)
-  assert_eq(schema.messages.length(), 20)
+  assert_eq(schema.enums.length(), 18)
+  assert_eq(schema.messages.length(), 45)
   assert_true(code.contains("pub(all) struct Heartbeat"))
   assert_true(code.contains("pub(all) struct MissionItemInt"))
+  assert_true(code.contains("pub(all) struct BatteryStatus"))
+  assert_true(code.contains("pub(all) struct AutopilotVersion"))
   assert_true(code.contains("pub(all) struct LoggingAck"))
   assert_true(code.contains("pub(all) enum MavCoordFrame"))
+  assert_true(code.contains("pub(all) enum MavParamType"))
 }
 
 ///|

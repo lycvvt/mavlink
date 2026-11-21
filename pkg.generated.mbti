@@ -38,6 +38,10 @@ pub fn encode_frame(MavHeader, Bytes, Byte, truncate_v2_zeros? : Bool, signing? 
 
 pub fn enum_entry_variant_name(String, String) -> String
 
+pub fn evaluate_noisy_stream_recovery(Int32, Int32, Int32) -> NoisyStreamStressReport
+
+pub fn evaluate_zero_trimming_bandwidth() -> ZeroTrimmingBandwidthReport
+
 pub fn field_moonbit_type(MavFieldType) -> String
 
 pub fn generate_moonbit_code(DialectSchema) -> String
@@ -51,6 +55,8 @@ pub fn lookup_message_crc_extra(UInt32) -> Byte?
 pub fn lookup_message_name(UInt32) -> String?
 
 pub fn merge_dialect_schemas(DialectSchema, DialectSchema) -> Result[DialectSchema, MavError]
+
+pub fn official_45_golden_table() -> Array[GoldenDialectEntry]
 
 pub let official_minimal_xml : String
 
@@ -377,6 +383,17 @@ pub fn GlobalPositionInt::max_payload_len() -> Int32
 pub fn GlobalPositionInt::msg_id() -> UInt32
 pub fn GlobalPositionInt::not_equal(Self, Self) -> Bool
 pub fn GlobalPositionInt::to_repr(Self) -> @debug.Repr
+
+pub(all) struct GoldenDialectEntry {
+  msg_id : UInt32
+  name : String
+  expected_crc_extra : Byte
+  expected_base_len : Int32
+  expected_max_len : Int32
+} derive(Eq, @debug.Debug)
+pub fn GoldenDialectEntry::equal(Self, Self) -> Bool
+pub fn GoldenDialectEntry::not_equal(Self, Self) -> Bool
+pub fn GoldenDialectEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) enum GpsFixType {
   NoGps
@@ -1176,6 +1193,17 @@ pub fn NodeLinkStatus::equal(Self, Self) -> Bool
 pub fn NodeLinkStatus::not_equal(Self, Self) -> Bool
 pub fn NodeLinkStatus::to_repr(Self) -> @debug.Repr
 
+pub(all) struct NoisyStreamStressReport {
+  transmitted_frames : Int32
+  recovered_frames : Int32
+  total_stream_bytes : Int32
+  injected_noise_bytes : Int32
+  detected_dropped_packets : Int32
+} derive(Eq, @debug.Debug)
+pub fn NoisyStreamStressReport::equal(Self, Self) -> Bool
+pub fn NoisyStreamStressReport::not_equal(Self, Self) -> Bool
+pub fn NoisyStreamStressReport::to_repr(Self) -> @debug.Repr
+
 pub(all) struct ParamRequestList {
   target_system : Byte
   target_component : Byte
@@ -1742,6 +1770,20 @@ pub(all) struct XmlMessageDef {
 pub fn XmlMessageDef::equal(Self, Self) -> Bool
 pub fn XmlMessageDef::not_equal(Self, Self) -> Bool
 pub fn XmlMessageDef::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ZeroTrimmingBandwidthReport {
+  total_frames : Int32
+  untrimmed_payload_bytes : Int32
+  trimmed_payload_bytes : Int32
+  untrimmed_wire_bytes : Int32
+  trimmed_wire_bytes : Int32
+  saved_bytes : Int32
+  payload_saving_pct : Double
+  wire_saving_pct : Double
+} derive(Eq, @debug.Debug)
+pub fn ZeroTrimmingBandwidthReport::equal(Self, Self) -> Bool
+pub fn ZeroTrimmingBandwidthReport::not_equal(Self, Self) -> Bool
+pub fn ZeroTrimmingBandwidthReport::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

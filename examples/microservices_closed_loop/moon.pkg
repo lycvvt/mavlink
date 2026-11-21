@@ -1,0 +1,5 @@
+import {
+  "lycvvt/mavlink",
+}
+
+pkgtype(kind: "executable")

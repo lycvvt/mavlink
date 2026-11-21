@@ -567,3 +567,78 @@ test "blackbox: extract_message_target identifies unicast vs broadcast MAVLink m
   })
   assert_eq(@mavlink.extract_message_target(cmd), Some((b'\x01', b'\x9a')))
 }
+
+///|
+test "blackbox: QGroundControl .tlog recording and replay with SHA-256 signed frames" {
+  let key = b"0123456789abcdef0123456789abcdef"
+  let tx_sign = match
+    @mavlink.SigningContext::new(
+      key,
+      link_id=b'\x01',
+      initial_timestamp=10_000UL,
+    ) {
+    Ok(s) => s
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let rx_sign = match
+    @mavlink.SigningContext::new(
+      key,
+      link_id=b'\x01',
+      initial_timestamp=10_000UL,
+    ) {
+    Ok(s) => s
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let rec = @mavlink.TlogRecorder::new()
+  let _ = rec.record_message(
+    1730800000100000UL,
+    @mavlink.MavMessage::MsgExtendedSysState({
+      vtol_state: b'\x03',
+      landed_state: b'\x02',
+    }),
+    seq=b'\x01',
+    sysid=b'\x01',
+    compid=b'\x01',
+    signing=Some(tx_sign),
+  )
+  let decoded = match
+    @mavlink.decode_tlog_stream(
+      rec.to_bytes(),
+      @mavlink.lookup_message_crc_extra,
+      signing=Some(rx_sign),
+    ) {
+    Ok(es) => es
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(decoded.length(), 1)
+  assert_eq(decoded[0].timestamp_usec, 1730800000100000UL)
+  assert_eq(decoded[0].frame.header.msgid, 245U)
+}
+
+///|
+test "blackbox: FtpServer and ExtendedParameterServer end-to-end integration" {
+  let ftp_srv = @mavlink.FtpServer::new([
+    ("/etc/init.d/rcS", b"uorb start\npx4io start\n"),
+  ])
+  let open_reply = ftp_srv.handle_packet({
+    seq_number: 10U,
+    session: b'\x00',
+    opcode: @mavlink.FtpOpcode::OpenFileRO,
+    req_opcode: @mavlink.FtpOpcode::FtpNone,
+    burst_complete: false,
+    offset: 0U,
+    data: b"/etc/init.d/rcS",
+  })
+  assert_eq(open_reply.opcode, @mavlink.FtpOpcode::Ack)
+
+  let ext_srv = @mavlink.ExtendedParameterServer::new(b'\x01', b'\x64', [
+    ("GIMBAL_FW_VER", "v2.4.1-release", b'\x0b'),
+  ])
+  let replies = ext_srv.handle_message(
+    @mavlink.MavMessage::MsgParamExtRequestList({
+      target_system: b'\x01',
+      target_component: b'\x64',
+    }),
+  )
+  assert_eq(replies.length(), 1)
+}

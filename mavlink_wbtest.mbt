@@ -2933,3 +2933,120 @@ test "router: MavRouter source learning, unicast forwarding, system-wide fanout,
   assert_eq(router.unicast_forwarded, 3)
   assert_eq(router.broadcast_flooded, 3)
 }
+
+///|
+test "tlog: encode_tlog_entry 8-byte Big-Endian microsecond timestamp and decode_tlog_stream roundtrip" {
+  let hb = MsgHeartbeat({
+    custom_mode: 0x00040000U,
+    mav_type: b'\x02',
+    autopilot: b'\x0c',
+    base_mode: b'\xd1',
+    system_status: b'\x04',
+    mavlink_version: b'\x03',
+  })
+  let (wire, frame) = match
+    hb.encode_to_frame(seq=b'\x05', sysid=b'\x01', compid=b'\x01') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  let ts = 0x0006265C1A2B3C4DUL
+  let tlog_bytes = encode_tlog_entry(ts, wire)
+  // Verify Big-Endian byte order of the 8-byte header
+  assert_eq(tlog_bytes[0], b'\x00')
+  assert_eq(tlog_bytes[1], b'\x06')
+  assert_eq(tlog_bytes[2], b'\x26')
+  assert_eq(tlog_bytes[7], b'\x4D')
+
+  let entries = match decode_tlog_stream(tlog_bytes, lookup_message_crc_extra) {
+    Ok(es) => es
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(entries.length(), 1)
+  assert_eq(entries[0].timestamp_usec, ts)
+  assert_eq(entries[0].frame, frame)
+}
+
+///|
+test "tlog: TlogRecorder multi-frame stream recording, time-range filtering, and msgid filtering" {
+  let rec = TlogRecorder::new()
+  let hb = MsgHeartbeat({
+    custom_mode: 0U,
+    mav_type: b'\x02',
+    autopilot: b'\x0c',
+    base_mode: b'\xd1',
+    system_status: b'\x04',
+    mavlink_version: b'\x03',
+  })
+  let att = MsgAttitude({
+    time_boot_ms: 1000U,
+    roll: (0.05 : Float),
+    pitch: (-0.01 : Float),
+    yaw: (1.57 : Float),
+    rollspeed: (0.0 : Float),
+    pitchspeed: (0.0 : Float),
+    yawspeed: (0.0 : Float),
+  })
+  assert_eq(
+    rec.record_message(
+      1_000_000UL,
+      hb,
+      seq=b'\x00',
+      sysid=b'\x01',
+      compid=b'\x01',
+    ),
+    Ok(()),
+  )
+  assert_eq(
+    rec.record_message(
+      1_500_000UL,
+      att,
+      seq=b'\x01',
+      sysid=b'\x01',
+      compid=b'\x01',
+    ),
+    Ok(()),
+  )
+  assert_eq(
+    rec.record_message(
+      2_000_000UL,
+      hb,
+      seq=b'\x02',
+      sysid=b'\x01',
+      compid=b'\x01',
+    ),
+    Ok(()),
+  )
+  assert_eq(rec.entry_count, 3)
+
+  let all_entries = match
+    decode_tlog_stream(rec.to_bytes(), lookup_message_crc_extra) {
+    Ok(es) => es
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(all_entries.length(), 3)
+
+  let mid_window = filter_tlog_by_time_range(
+    all_entries, 1_200_000UL, 1_800_000UL,
+  )
+  assert_eq(mid_window.length(), 1)
+  assert_eq(mid_window[0].frame.header.msgid, 30U)
+
+  let only_hb = filter_tlog_by_msgid(all_entries, 0U)
+  assert_eq(only_hb.length(), 2)
+}
+
+///|
+test "boundary: decode_tlog_stream rejects truncated 8-byte timestamp header and truncated trailing frame" {
+  // 5 bytes (< 8-byte timestamp header)
+  assert_true(
+    decode_tlog_stream(b"\x00\x01\x02\x03\x04", lookup_message_crc_extra)
+    is Err(IncompleteFrame(_, _)),
+  )
+  // 8-byte timestamp followed by only 3 bytes of a MAVLink frame
+  assert_true(
+    decode_tlog_stream(
+      b"\x00\x00\x00\x00\x00\x00\x03\xE8\xFD\x09\x00", lookup_message_crc_extra,
+    )
+    is Err(IncompleteFrame(_, _)),
+  )
+}

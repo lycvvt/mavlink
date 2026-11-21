@@ -547,3 +547,23 @@ test "blackbox: TelemetryRateTracker multi-stream rate and bandwidth audit" {
   assert_eq(tracker.total_frames, 1)
   assert_eq(tracker.message_rate_hz(0U, 1000UL), 1.0)
 }
+
+///|
+test "blackbox: extract_message_target identifies unicast vs broadcast MAVLink messages" {
+  let hb = @mavlink.MavMessage::MsgHeartbeat({
+    custom_mode: 0U,
+    mav_type: b'\x02',
+    autopilot: b'\x0c',
+    base_mode: b'\xd1',
+    system_status: b'\x04',
+    mavlink_version: b'\x03',
+  })
+  assert_eq(@mavlink.extract_message_target(hb), None)
+
+  let cmd = @mavlink.MavMessage::MsgCommandCancel({
+    command: 400U,
+    target_system: b'\x01',
+    target_component: b'\x9a',
+  })
+  assert_eq(@mavlink.extract_message_target(cmd), Some((b'\x01', b'\x9a')))
+}

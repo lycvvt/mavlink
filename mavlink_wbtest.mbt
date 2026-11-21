@@ -2854,3 +2854,82 @@ test "microservice: FtpServer virtual file OpenFileRO, ReadFile, ListDirectory, 
   assert_eq(missing_nak.opcode, Nak)
   assert_eq(missing_nak.data, b"\x0A")
 }
+
+///|
+test "router: MavRouter source learning, unicast forwarding, system-wide fanout, and split-horizon loop prevention" {
+  // Port 0: UART0 (Autopilot 1:1), Port 1: UART1 (Camera 1:100), Port 2: UDP0 (QGC 255:190)
+  let router = MavRouter::new([0, 1, 2])
+  let hb = MsgHeartbeat({
+    custom_mode: 0U,
+    mav_type: b'\x02',
+    autopilot: b'\x0c',
+    base_mode: b'\xd1',
+    system_status: b'\x04',
+    mavlink_version: b'\x03',
+  })
+
+  // 1. Autopilot (1:1) sends HEARTBEAT on port 0 -> floods to [1, 2]
+  let (_, f_ap_hb) = match
+    hb.encode_to_frame(seq=b'\x00', sysid=b'\x01', compid=b'\x01') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(router.route_frame(0, f_ap_hb), [1, 2])
+
+  // 2. Camera (1:100) sends HEARTBEAT on port 1 -> floods to [0, 2]
+  let (_, f_cam_hb) = match
+    hb.encode_to_frame(seq=b'\x00', sysid=b'\x01', compid=b'\x64') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(router.route_frame(1, f_cam_hb), [0, 2])
+
+  // 3. QGC (255:190) on port 2 sends PARAM_EXT_REQUEST_LIST targeting Camera (1:100) -> unicast ONLY to [1]
+  let (_, f_qgc_to_cam) = match
+    MsgParamExtRequestList({
+      target_system: b'\x01',
+      target_component: b'\x64',
+    }).encode_to_frame(seq=b'\x01', sysid=b'\xff', compid=b'\xbe') {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(router.route_frame(2, f_qgc_to_cam), [1])
+
+  // 4. QGC (255:190) on port 2 sends SET_MODE targeting system 1 (target_component=0) -> forwards to both [0, 1]
+  let (_, f_qgc_to_sys1) = match
+    MsgSetMode({ custom_mode: 4U, target_system: b'\x01', base_mode: b'\xd1', }).encode_to_frame(
+      seq=b'\x02',
+      sysid=b'\xff',
+      compid=b'\xbe',
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(router.route_frame(2, f_qgc_to_sys1), [0, 1])
+
+  // 5. Hair-pin suppression: frame arriving on port 0 targeting (1:1) on port 0 is not reflected back to port 0
+  let (_, f_same_port) = match
+    MsgParamRequestList({ target_system: b'\x01', target_component: b'\x01', }).encode_to_frame(
+      seq=b'\x03',
+      sysid=b'\x02',
+      compid=b'\x01',
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(router.route_frame(0, f_same_port), [])
+
+  // 6. Unlearned destination (sysid=99) falls back to flooding non-ingress ports [0, 1]
+  let (_, f_unknown_dst) = match
+    MsgParamRequestList({ target_system: b'\x63', target_component: b'\x01', }).encode_to_frame(
+      seq=b'\x04',
+      sysid=b'\xff',
+      compid=b'\xbe',
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.to_repr().to_string())
+  }
+  assert_eq(router.route_frame(2, f_unknown_dst), [0, 1])
+  assert_eq(router.unicast_forwarded, 3)
+  assert_eq(router.broadcast_flooded, 3)
+}
